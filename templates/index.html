@@ -11,7 +11,6 @@
 
         <a href="/logout" class="btn btn-danger mb-3">Sair</a>
 
-        <!-- Formulário para adicionar usuários -->
         <form method="POST" action="/adicionar" class="mb-4">
             <div class="row g-2">
                 <div class="col">
@@ -26,7 +25,6 @@
             </div>
         </form>
 
-        <!-- Tabela de usuários -->
         <table class="table table-bordered table-striped">
             <thead class="table-dark">
                 <tr>
@@ -39,15 +37,17 @@
                 {% for usuario in aprovados %}
                 <tr>
                     <td>
-                        {{ usuario['username'] }}
-                        <button class="btn btn-sm btn-outline-secondary" onclick="copiarTexto('{{ usuario['username'] | e }}')">Copiar</button>
+                        {{ usuario.username }}
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="copiarTexto('{{ usuario.username }}')">Copiar</button>
                     </td>
                     <td>
-                        {{ usuario['chat_id'] }}
-                        <button class="btn btn-sm btn-outline-secondary" onclick="copiarTexto('{{ usuario['chat_id'] | e }}')">Copiar</button>
+                        {{ usuario.chat_id }}
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="copiarTexto('{{ usuario.chat_id }}')">Copiar</button>
                     </td>
                     <td>
-                        <form action="/remover/{{ usuario['username'] }}" method="POST" style="display:inline;">
+                        <form action="/remover/{{ usuario.username }}" method="post" style="display:inline;">
                             <button type="submit" class="btn btn-sm btn-danger">Remover</button>
                         </form>
                     </td>
