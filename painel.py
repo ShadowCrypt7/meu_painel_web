@@ -42,7 +42,7 @@ def login():
             session['usuario'] = usuario
             return redirect(url_for('home'))
         return "❌ Login inválido!"
-    return render_template('login.html')
+    return render_template('login')
 
 @app.route('/logout')
 def logout():
@@ -63,7 +63,7 @@ def adicionar():
 
     return redirect(url_for('home'))
 
-@app.route('/remover/<username>')
+@app.route('/remover/<username>', methods=['POST'])
 def remover(username):
     if 'usuario' not in session:
         return redirect(url_for('login'))
