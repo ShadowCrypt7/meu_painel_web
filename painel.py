@@ -40,7 +40,7 @@ def login():
         senha = request.form['password']
         if usuario == USUARIO_PAINEL and senha == SENHA_PAINEL:
             session['usuario'] = usuario
-            return redirect(url_for('/home'))
+            return redirect(url_for('home'))
         return "❌ Login inválido!"
     return render_template('login.html')
 
