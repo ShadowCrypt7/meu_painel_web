@@ -25,13 +25,6 @@ def salvar_usuarios(usuarios):
         json.dump(usuarios, file, indent=4)
 
 # 🔐 Rotas do Painel
-@app.route('/')
-def home():
-    if 'usuario' in session:
-        usuarios = carregar_usuarios()
-        return render_template('index.html', usuarios=usuarios)
-    return redirect(url_for('login'))
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -42,6 +35,13 @@ def login():
             return redirect(url_for('home'))
         return "❌ Login inválido!"
     return render_template('login.html')
+
+@app.route('/')
+def home():
+    if 'usuario' in session:
+        usuarios = carregar_usuarios()
+        return render_template('index.html', usuarios=usuarios)
+    return redirect(url_for('login'))
 
 @app.route('/logout')
 def logout():
