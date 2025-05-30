@@ -30,7 +30,7 @@ def salvar_usuarios(usuarios):
 def home():
     if 'usuario' in session:
         usuarios = carregar_usuarios()
-        return render_template('painel.html', usuarios=usuarios)
+        return render_template('index.html', usuarios=usuarios)
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
