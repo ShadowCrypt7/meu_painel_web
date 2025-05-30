@@ -26,13 +26,6 @@ def salvar_usuarios(usuarios):
 
 
 # 🔐 Rotas do Painel
-@app.route('/')
-def home():
-    if 'usuario' in session:
-        usuarios = carregar_usuarios()
-        return render_template('index.html', usuarios=usuarios)
-    return redirect(url_for('/login'))
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -44,15 +37,22 @@ def login():
         return "❌ Login inválido!"
     return render_template('login.html')
 
+@app.route('/')
+def home():
+    if 'usuario' in session:
+        usuarios = carregar_usuarios()
+        return render_template('index.html', usuarios=usuarios)
+    return redirect(url_for('login'))
+
 @app.route('/logout')
 def logout():
     session.pop('usuario', None)
-    return redirect(url_for('/login'))
+    return redirect(url_for('login'))
 
 @app.route('/adicionar', methods=['POST'])
 def adicionar():
     if 'usuario' not in session:
-        return redirect(url_for('/login'))
+        return redirect(url_for('login'))
 
     username = request.form['username']
     chat_id = request.form['chat_id']
@@ -61,18 +61,18 @@ def adicionar():
     usuarios.append({'username': username, 'chat_id': chat_id})
     salvar_usuarios(usuarios)
 
-    return redirect(url_for('/home'))
+    return redirect(url_for('home'))
 
 @app.route('/remover/<username>', methods=['POST'])
 def remover(username):
     if 'usuario' not in session:
-        return redirect(url_for('/login'))
+        return redirect(url_for('login'))
 
     usuarios = carregar_usuarios()
     usuarios = [u for u in usuarios if u['username'] != username]
     salvar_usuarios(usuarios)
 
-    return redirect(url_for('/home'))
+    return redirect(url_for('home'))
 
 
 # 🔗 API - Adiciona usuário via Bot
