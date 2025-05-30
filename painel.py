@@ -24,7 +24,6 @@ def salvar_usuarios(usuarios):
     with open('usuarios_aprovados.json', 'w') as file:
         json.dump(usuarios, file, indent=4)
 
-
 # 🔐 Rotas do Painel
 @app.route('/')
 def home():
@@ -74,7 +73,6 @@ def remover(username):
 
     return redirect(url_for('home'))
 
-
 # 🔗 API - Adiciona usuário via Bot
 @app.route('/api/adicionar', methods=['POST'])
 def api_adicionar():
@@ -104,7 +102,6 @@ def api_adicionar():
     salvar_usuarios(usuarios)
 
     return {"status": "sucesso", "mensagem": "Usuário adicionado"}, 200
-
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
