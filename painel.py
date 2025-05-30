@@ -36,10 +36,10 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        usuario = request.form['usuario']
-        senha = request.form['senha']
+        usuario = request.form['username']
+        senha = request.form['password']
         if usuario == USUARIO_PAINEL and senha == SENHA_PAINEL:
-            session['usuario'] = usuario
+            session['username'] = usuario
             return redirect(url_for('home'))
         return "❌ Login inválido!"
     return render_template('login.html')
