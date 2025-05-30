@@ -37,6 +37,8 @@ def create_tables():
         ''')
         print("DEBUG: Tabela usuarios verificada/criada.") # <--- NOVO PRINT
 
+        
+
         # Tabela de Planos
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS planos (
@@ -44,7 +46,8 @@ def create_tables():
                 nome_exibicao TEXT NOT NULL,
                 preco REAL NOT NULL,
                 descricao TEXT,
-                link_conteudo TEXT NOT NULL
+                link_conteudo TEXT NOT NULL,
+                ativo BOOLEAN DEFAULT TRUE 
             )
         ''')
         print("DEBUG: Tabela planos verificada/criada.") # <--- NOVO PRINT
@@ -81,17 +84,17 @@ if __name__ == '__main__':
     print("DEBUG: create_tables() concluída a partir do bloco __main__.") # <--- NOVO PRINT
 
     # Comente ou remova a parte de inserir planos por enquanto para simplificar
-    # conn = get_db_connection()
-    # cursor = conn.cursor()
-    # try:
-    #     cursor.execute("INSERT INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo) VALUES (?, ?, ?, ?, ?)",
+    #conn = get_db_connection()
+    #cursor = conn.cursor()
+    #try:
+    #    cursor.execute("INSERT INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo) VALUES (?, ?, ?, ?, ?)",
     #                    ('plano_mensal_basico', '🔥 Mensal Básico 🔥', 19.99, 'Plano Mensal com mais de 100 fotos e vídeos', os.getenv("GRUPO_EXCLUSIVO_BASICO", "SEU_LINK_BASICO_AQUI")))
-    #     cursor.execute("INSERT INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo) VALUES (?, ?, ?, ?, ?)",
+    #    cursor.execute("INSERT INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo) VALUES (?, ?, ?, ?, ?)",
     #                    ('plano_mensal_premium', '😈 Mensal Premium 😈', 39.99, 'Plano Premium com tudo incluso + VIP + Contato', os.getenv("GRUPO_EXCLUSIVO_PREMIUM", "SEU_LINK_PREMIUM_AQUI")))
-    #     conn.commit()
-    #     print("Planos de exemplo inseridos.")
-    # except sqlite3.IntegrityError:
-    #     print("Planos de exemplo já existem ou houve um erro.")
-    # finally:
-    #     if conn: # Garante que conn existe antes de tentar fechar
-    #         conn.close()
+    #   conn.commit()
+    #   print("Planos de exemplo inseridos.")
+    #except sqlite3.IntegrityError:
+    #   print("Planos de exemplo já existem ou houve um erro.")
+    #finally:
+    #    if conn: # Garante que conn existe antes de tentar fechar
+    #        conn.close()

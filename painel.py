@@ -60,6 +60,46 @@ def logout():
     flash('Você foi desconectado.', 'info')
     return redirect(url_for('login'))
 
+# Adicione esta nova rota em algum lugar do seu painel.py
+@app.route('/admin/setup_planos_iniciais_uma_vez_AGORA') # Nome diferente para garantir
+def setup_planos_iniciais_agora():
+    if 'usuario_admin' not in session: # Protege a rota
+        return "Não autorizado", 401
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    mensagens_resultado = []
+    try:
+        # Defina os links dos seus grupos aqui ou pegue do .env
+        # É importante que GRUPO_EXCLUSIVO_BASICO e GRUPO_EXCLUSIVO_PREMIUM
+        # estejam configurados nas variáveis de ambiente do seu serviço no Render.
+        link_basico = os.getenv("GRUPO_EXCLUSIVO")
+        link_premium = os.getenv("GRUPO_EXCLUSIVO")
+
+        # Garanta que a tabela planos no database.py tem a coluna 'ativo'
+        # Ex: ativo BOOLEAN DEFAULT TRUE
+
+        planos_para_inserir = [
+            ('plano_mensal_basico', '🔥 Mensal Básico 🔥', 19.99, 'Plano Mensal com mais de 100 fotos e vídeos', link_basico, True),
+            ('plano_mensal_premium', '😈 Mensal Premium 😈', 39.99, 'Plano Premium com tudo incluso + VIP + Contato', link_premium, True)
+        ]
+
+        for plano_data in planos_para_inserir:
+            try:
+                cursor.execute("INSERT INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo) VALUES (?, ?, ?, ?, ?, ?)",
+                               plano_data)
+                mensagens_resultado.append(f"Plano '{plano_data[0]}' inserido com sucesso.")
+            except sqlite3.IntegrityError:
+                mensagens_resultado.append(f"Plano '{plano_data[0]}' já existe.")
+
+        conn.commit()
+        conn.close()
+        return "<br>".join(mensagens_resultado) + "<br><br>Processo concluído. Remova ou comente esta rota após o uso."
+    except Exception as e:
+        if conn:
+            conn.close()
+        return f"Erro ao inserir planos: {str(e)}"
+
 @app.route('/aprovar_assinatura/<int:id_assinatura>', methods=['POST'])
 def aprovar_assinatura(id_assinatura):
     if 'usuario_admin' not in session:
