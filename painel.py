@@ -61,8 +61,6 @@ def logout():
     return redirect(url_for('login'))
 
 # Adicione esta nova rota em algum lugar do seu painel.py
-@# Em painel.py
-
 @app.route('/admin/setup_planos_iniciais_uma_vez_AGORA')
 def setup_planos_iniciais_agora():
     if 'usuario_admin' not in session: # Protege a rota
