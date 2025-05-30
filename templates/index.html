@@ -34,22 +34,21 @@
                 </tr>
             </thead>
             <tbody>
-                {% for usuario in usuarios %}
+                {% for assinatura in assinaturas %}
                 <tr>
+                    <td>{{ assinatura.username or assinatura.first_name }} ({{ assinatura.chat_id }})</td>
+                    <td>{{ assinatura.nome_plano }}</td>
+                    <td>{{ assinatura.status_pagamento }}</td>
+                    <td>{{ assinatura.data_compra }}</td>
                     <td>
-                        {{ usuario.username }}
-                        <button class="btn btn-sm btn-outline-secondary"
-                                onclick="copiarTexto('{{ usuario.username }}')">Copiar</button>
-                    </td>
-                    <td>
-                        {{ usuario.chat_id }}
-                        <button class="btn btn-sm btn-outline-secondary"
-                                onclick="copiarTexto('{{ usuario.chat_id }}')">Copiar</button>
-                    </td>
-                    <td>
-                        <form action="/remover/{{ usuario.username }}" method="post" style="display:inline;">
-                            <button type="submit" class="btn btn-sm btn-danger">Remover</button>
+                        {% if assinatura.status_pagamento == 'pendente_comprovante' %}
+                        <form action="{{ url_for('aprovar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-success">Aprovar</button>
                         </form>
+                        {% endif %}
+                        <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-warning">Revogar</button>
+                         </form>
                     </td>
                 </tr>
                 {% endfor %}
