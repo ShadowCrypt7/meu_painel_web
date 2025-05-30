@@ -1,7 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from functools import wraps
-import json
 import os
+import json
+from flask import Flask, render_template, request, redirect, url_for, session
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,78 +10,101 @@ app.secret_key = os.getenv("SECRET_KEY_PAINEL")
 
 USUARIO_PAINEL = os.getenv("USUARIO_PAINEL")
 SENHA_PAINEL = os.getenv("SENHA_PAINEL")
-ARQUIVO = 'usuarios_aprovados.json'
+CHAVE_PAINEL = os.getenv("CHAVE_PAINEL")
 
+# 📄 Funções para manipular JSON
 def carregar_usuarios():
-    if os.path.exists(ARQUIVO):
-        try:
-            with open(ARQUIVO, 'r') as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            return []
-    return []
+    try:
+        with open('usuarios_aprovados.json', 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return []
 
 def salvar_usuarios(usuarios):
-    with open(ARQUIVO, 'w') as f:
-        json.dump(usuarios, f, indent=4)
+    with open('usuarios_aprovados.json', 'w') as file:
+        json.dump(usuarios, file, indent=4)
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('logado'):
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
+
+# 🔐 Rotas do Painel
+@app.route('/')
+def home():
+    if 'usuario' in session:
+        usuarios = carregar_usuarios()
+        return render_template('painel.html', usuarios=usuarios)
+    return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        senha = request.form['password']
-        if username == USUARIO_PAINEL and senha == SENHA_PAINEL:
-            session['logado'] = True
-            return redirect(url_for('index'))
-        else:
-            flash('Usuário ou senha incorretos!', 'danger')
+        usuario = request.form['usuario']
+        senha = request.form['senha']
+        if usuario == USUARIO_PAINEL and senha == SENHA_PAINEL:
+            session['usuario'] = usuario
+            return redirect(url_for('home'))
+        return "❌ Login inválido!"
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
-    session.pop('logado', None)
+    session.pop('usuario', None)
     return redirect(url_for('login'))
 
-@app.route('/')
-@login_required
-def index():
-    aprovados = carregar_usuarios()
-    return render_template('index.html', aprovados=aprovados)
-
 @app.route('/adicionar', methods=['POST'])
-@login_required
 def adicionar():
-    username = request.form['username'].strip()
-    chat_id = request.form['chat_id'].strip()
-    if not username or not chat_id:
-        flash('Preencha todos os campos!', 'warning')
-        return redirect(url_for('index'))
-    aprovados = carregar_usuarios()
-    if any(u['username'] == username for u in aprovados):
-        flash('Usuário já está na lista!', 'warning')
-        return redirect(url_for('index'))
-    aprovados.append({'username': username, 'chat_id': chat_id})
-    salvar_usuarios(aprovados)
-    flash('Usuário adicionado com sucesso!', 'success')
-    return redirect(url_for('index'))
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
 
-@app.route('/remover/<username>', methods=['POST'])
-@login_required
+    username = request.form['username']
+    chat_id = request.form['chat_id']
+
+    usuarios = carregar_usuarios()
+    usuarios.append({'username': username, 'chat_id': chat_id})
+    salvar_usuarios(usuarios)
+
+    return redirect(url_for('home'))
+
+@app.route('/remover/<username>')
 def remover(username):
-    aprovados = carregar_usuarios()
-    aprovados = [u for u in aprovados if u['username'] != username]
-    salvar_usuarios(aprovados)
-    flash('Usuário removido com sucesso!', 'success')
-    return redirect(url_for('index'))
+    if 'usuario' not in session:
+        return redirect(url_for('login'))
+
+    usuarios = carregar_usuarios()
+    usuarios = [u for u in usuarios if u['username'] != username]
+    salvar_usuarios(usuarios)
+
+    return redirect(url_for('home'))
+
+
+# 🔗 API - Adiciona usuário via Bot
+@app.route('/api/adicionar', methods=['POST'])
+def api_adicionar():
+    data = request.get_json()
+
+    if not data:
+        return {"status": "erro", "mensagem": "JSON não enviado"}, 400
+
+    if data.get("chave_secreta") != CHAVE_PAINEL:
+        return {"status": "erro", "mensagem": "Chave inválida"}, 403
+
+    username = data.get('username', '').strip()
+    chat_id = data.get('chat_id', '').strip()
+
+    if not username or not chat_id:
+        return {"status": "erro", "mensagem": "Dados incompletos"}, 400
+    
+    if not chat_id.isdigit():
+        return {"status": "erro", "mensagem": "chat_id inválido"}, 400
+
+    usuarios = carregar_usuarios()
+
+    if any(u['username'] == username for u in usuarios):
+        return {"status": "erro", "mensagem": "Usuário já existe"}, 409
+
+    usuarios.append({'username': username, 'chat_id': chat_id})
+    salvar_usuarios(usuarios)
+
+    return {"status": "sucesso", "mensagem": "Usuário adicionado"}, 200
+
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True, host='0.0.0.0', port=5000)
