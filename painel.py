@@ -84,8 +84,8 @@ def api_adicionar():
     if data.get("chave_secreta") != CHAVE_PAINEL:
         return {"status": "erro", "mensagem": "Chave inválida"}, 403
 
-    username = data.get('username', '').strip()
-    chat_id = data.get('chat_id', '').strip()
+    username = str(data.get('username', '').strip())
+    chat_id = str(data.get('chat_id', '').strip())
 
     if not username or not chat_id:
         return {"status": "erro", "mensagem": "Dados incompletos"}, 400
