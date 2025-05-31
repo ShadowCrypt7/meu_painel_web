@@ -60,42 +60,6 @@ def logout():
     flash('Você foi desconectado.', 'info')
     return redirect(url_for('login'))
 
-# Adicione esta nova rota em algum lugar do seu painel.py
-@app.route('/admin/setup_planos_iniciais_uma_vez_AGORA')
-def setup_planos_iniciais_agora():
-    if 'usuario_admin' not in session: # Protege a rota
-        return "Não autorizado", 401
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    mensagens_resultado = []
-    try:
-        link_basico = os.getenv("GRUPO_EXCLUSIVO_BASICO", "https://link.do.seu.grupo.basico")
-        link_premium = os.getenv("GRUPO_EXCLUSIVO_PREMIUM", "https://link.do.seu.grupo.premium")
-
-        # Lista de planos SEM a coluna 'ativo'
-        planos_para_inserir = [
-            ('plano_mensal_basico', '🔥 Mensal Básico 🔥', 19.99, 'Plano Mensal com mais de 100 fotos e vídeos', link_basico),
-            ('plano_mensal_premium', '😈 Mensal Premium 😈', 39.99, 'Plano Premium com tudo incluso + VIP + Contato', link_premium)
-        ]
-
-        for plano_data in planos_para_inserir:
-            try:
-                # Query INSERT SEM a coluna 'ativo' e com 5 placeholders (?)
-                cursor.execute("INSERT INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo) VALUES (?, ?, ?, ?, ?)",
-                               plano_data)
-                mensagens_resultado.append(f"Plano '{plano_data[0]}' inserido com sucesso.")
-            except sqlite3.IntegrityError:
-                mensagens_resultado.append(f"Plano '{plano_data[0]}' já existe.")
-        
-        conn.commit()
-        conn.close()
-        return "<br>".join(mensagens_resultado) + "<br><br>Processo concluído. Remova ou comente esta rota após o uso."
-    except Exception as e:
-        if conn:
-            conn.close()
-        return f"Erro ao inserir planos: {str(e)}"
-
 @app.route('/aprovar_assinatura/<int:id_assinatura>', methods=['POST'])
 def aprovar_assinatura(id_assinatura):
     if 'usuario_admin' not in session:
