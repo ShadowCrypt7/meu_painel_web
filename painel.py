@@ -14,6 +14,8 @@ app.secret_key = os.getenv("SECRET_KEY_PAINEL")
 USUARIO_PAINEL = os.getenv("USUARIO_PAINEL")
 SENHA_PAINEL = os.getenv("SENHA_PAINEL")
 CHAVE_API_BOT = os.getenv("CHAVE_PAINEL") # Renomeando para clareza, essa é a chave que o BOT usa
+URL_API_NOTIFICACAO_BOT = os.getenv("URL_API_NOTIFICACAO_BOT")
+CHAVE_SECRETA_PARA_BOT = os.getenv("CHAVE_SECRETA_PARA_BOT") # Esta é a CHAVE_PAINEL
 
 # Garante que as tabelas sejam criadas ao iniciar o app do painel, se não existirem.
 # Isso é seguro por causa do "IF NOT EXISTS" nas queries de criação.
@@ -63,28 +65,69 @@ def logout():
 @app.route('/aprovar_assinatura/<int:id_assinatura>', methods=['POST'])
 def aprovar_assinatura(id_assinatura):
     if 'usuario_admin' not in session:
-        return jsonify({"status": "erro", "mensagem": "Não autorizado"}), 401 # Se for chamado por JS
-        # return redirect(url_for('login')) # Se for form submit direto
+        # ... (redirecionar para login) ...
+        return redirect(url_for('login'))
 
     conn = get_db_connection()
     try:
-        # Apenas muda o status. A notificação ao usuário será responsabilidade do bot após consultar status.
-        # Ou o painel poderia chamar uma API no bot para notificar (mais complexo agora).
+        cursor = conn.cursor() # Usar cursor para pegar dados retornados
+        # Pega os dados necessários para notificar o bot ANTES de fazer o commit da aprovação
+        cursor.execute('''
+            SELECT a.chat_id_usuario, p.link_conteudo, p.nome_exibicao as nome_plano
+            FROM assinaturas a
+            JOIN planos p ON a.id_plano_assinado = p.id_plano
+            WHERE a.id_assinatura = ? AND a.status_pagamento = 'pendente_comprovante'
+        ''', (id_assinatura,))
+        dados_assinatura = cursor.fetchone()
+
+        if not dados_assinatura:
+            flash(f'Assinatura ID {id_assinatura} não estava pendente ou não foi encontrada.', 'warning')
+            conn.close()
+            return redirect(url_for('home'))
+
+        # Atualiza o status da assinatura
         updated_rows = conn.execute('''
             UPDATE assinaturas 
             SET status_pagamento = 'aprovado_manual', data_liberacao = CURRENT_TIMESTAMP
-            WHERE id_assinatura = ? AND status_pagamento = 'pendente_comprovante'
-        ''', (id_assinatura,)).rowcount
+            WHERE id_assinatura = ? 
+        ''', (id_assinatura,)).rowcount # rowcount aqui ainda funciona para o UPDATE
         conn.commit()
-        
+
         if updated_rows > 0:
             flash(f'Assinatura ID {id_assinatura} aprovada manualmente!', 'success')
+
+            # Agora, notificar o bot para ele avisar o usuário
+            if URL_API_NOTIFICACAO_BOT and CHAVE_SECRETA_PARA_BOT:
+                payload_notificacao = {
+                    "chave_secreta_interna": CHAVE_SECRETA_PARA_BOT,
+                    "chat_id": dados_assinatura["chat_id_usuario"],
+                    "link_conteudo": dados_assinatura["link_conteudo"],
+                    "nome_plano": dados_assinatura["nome_plano"]
+                }
+                try:
+                    print(f"Enviando notificação de aprovação para o bot: {URL_API_NOTIFICACAO_BOT}, payload: {payload_notificacao}")
+                    response_bot = requests.post(URL_API_NOTIFICACAO_BOT, json=payload_notificacao, timeout=10)
+                    if response_bot.status_code == 200:
+                        print(f"Bot notificou sucesso: {response_bot.json().get('mensagem')}")
+                        flash('Bot foi notificado para enviar o acesso ao usuário.', 'info')
+                    else:
+                        print(f"Erro ao notificar bot: Status {response_bot.status_code} - {response_bot.text}")
+                        flash(f'Assinatura aprovada, mas falha ao notificar o bot (Status: {response_bot.status_code}). Verifique os logs do bot.', 'warning')
+                except requests.exceptions.RequestException as e_req:
+                    print(f"Erro de conexão ao tentar notificar bot: {e_req}")
+                    flash('Assinatura aprovada, mas erro de conexão ao tentar notificar o bot.', 'danger')
+            else:
+                flash('URL de notificação do bot ou chave não configurada. Não foi possível notificar o usuário automaticamente.', 'danger')
         else:
-            flash(f'Assinatura ID {id_assinatura} não estava pendente ou não foi encontrada.', 'warning')
-    except sqlite3.Error as e:
-        flash(f'Erro ao aprovar assinatura: {e}', 'danger')
+            flash(f'Assinatura ID {id_assinatura} não foi atualizada (talvez já estivesse aprovada).', 'warning')
+
+    except sqlite3.Error as e_sql:
+        flash(f'Erro de banco de dados ao aprovar assinatura: {e_sql}', 'danger')
+    except Exception as e_geral:
+        flash(f'Erro geral ao aprovar assinatura: {e_geral}', 'danger')
     finally:
-        conn.close()
+        if conn:
+            conn.close()
     return redirect(url_for('home'))
 
 @app.route('/revogar_assinatura/<int:id_assinatura>', methods=['POST'])
