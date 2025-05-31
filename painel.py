@@ -1,13 +1,20 @@
 import os
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify # jsonify adicionado para API
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from dotenv import load_dotenv
 
+from datetime import datetime, timezone 
+from zoneinfo import ZoneInfo 
+
 # Importar funções do nosso módulo de banco de dados
-from database import get_db_connection, create_tables # Adicionado create_tables para garantir
+from database import get_db_connection, create_tables, try_add_status_usuario_column
+
+# Defina o seu fuso horário local
+# Para Goiás (que geralmente segue o horário de Brasília):
+FUSO_HORARIO_LOCAL = ZoneInfo("America/Sao_Paulo")
 
 load_dotenv()
-
+try_add_status_usuario_column()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY_PAINEL")
 
@@ -20,6 +27,32 @@ CHAVE_SECRETA_PARA_BOT = os.getenv("CHAVE_SECRETA_PARA_BOT") # Esta é a CHAVE_P
 # Garante que as tabelas sejam criadas ao iniciar o app do painel, se não existirem.
 # Isso é seguro por causa do "IF NOT EXISTS" nas queries de criação.
 create_tables()
+
+# Em painel.py, pode ser antes das suas rotas
+
+def formatar_data_local(dt_string_do_db):
+    if not dt_string_do_db:
+        return "" # Ou None, ou algum placeholder
+
+    try:
+        # SQLite geralmente armazena datetime como string no formato 'YYYY-MM-DD HH:MM:SS'
+        # Primeiro, converte a string para um objeto datetime "naive" (sem fuso)
+        dt_obj_naive = datetime.strptime(dt_string_do_db, '%Y-%m-%d %H:%M:%S')
+        
+        # Assume que este datetime naive do DB está em UTC
+        dt_obj_utc = dt_obj_naive.replace(tzinfo=timezone.utc)
+        
+        # Converte para o fuso horário local definido
+        dt_obj_local = dt_obj_utc.astimezone(FUSO_HORARIO_LOCAL)
+        
+        # Formata para exibição
+        return dt_obj_local.strftime('%Y-%m-%d %H:%M:%S')
+    except ValueError:
+        # Se o formato da string for inesperado, retorna a string original
+        return dt_string_do_db 
+    except Exception as e:
+        print(f"Erro ao formatar data {dt_string_do_db}: {e}")
+        return dt_string_do_db # Retorna original em caso de outro erro
 
 # --- Funções de Banco de Dados Específicas do Painel (se necessário) ---
 # Por enquanto, a maioria das interações pode ser direta nas rotas.
@@ -44,17 +77,42 @@ def home():
     
     conn = get_db_connection()
     assinaturas_db = conn.execute('''
-        SELECT a.id_assinatura, u.chat_id, u.username, u.first_name, 
-               p.nome_exibicao as nome_plano, a.id_plano_assinado, a.status_pagamento, 
-               a.data_compra, a.data_liberacao
-        FROM assinaturas a
-        JOIN usuarios u ON u.chat_id = a.chat_id_usuario
-        JOIN planos p ON p.id_plano = a.id_plano_assinado
-        ORDER BY a.data_compra DESC
+        WITH RankedAssinaturas AS (
+            SELECT 
+                a.id_assinatura, u.chat_id, u.username, u.first_name, 
+                p.nome_exibicao as nome_plano, a.id_plano_assinado, a.status_pagamento, 
+                a.data_compra, a.data_liberacao, u.status_usuario, -- Adicionamos status_usuario aqui
+                ROW_NUMBER() OVER (PARTITION BY u.chat_id 
+                                   ORDER BY 
+                                       CASE a.status_pagamento
+                                           WHEN 'aprovado_manual' THEN 1
+                                           WHEN 'pago_gateway' THEN 1
+                                           WHEN 'pendente_comprovante' THEN 2
+                                           WHEN 'pendente_gateway' THEN 3
+                                           ELSE 4
+                                       END, 
+                                       a.data_compra DESC) as rn
+            FROM assinaturas a
+            JOIN usuarios u ON u.chat_id = a.chat_id_usuario
+            JOIN planos p ON p.id_plano = a.id_plano_assinado
+            WHERE u.status_usuario = 'A'
+        )
+        SELECT * FROM RankedAssinaturas
+        WHERE rn = 1
+        ORDER BY data_compra DESC;
     ''').fetchall()
     conn.close()
+
+    # Processar as datas para o fuso horário local
+    assinaturas_para_template = []
+    for row_original in assinaturas_db:
+        row_modificada = dict(row_original) # Converte sqlite3.Row para dict para poder modificar
+        row_modificada['data_compra'] = formatar_data_local(row_modificada['data_compra'])
+        if row_modificada.get('data_liberacao'): # data_liberacao pode ser NULL
+            row_modificada['data_liberacao'] = formatar_data_local(row_modificada['data_liberacao'])
+        assinaturas_para_template.append(row_modificada)
     
-    return render_template('index.html', assinaturas=assinaturas_db)
+    return render_template('index.html', assinaturas=assinaturas_para_template)
 
 @app.route('/logout')
 def logout():
@@ -242,6 +300,33 @@ def api_bot_verificar_status():
     except sqlite3.Error as e:
         conn.close()
         return jsonify({"status": "erro", "mensagem": f"Erro no banco de dados: {e}"}), 500
+    
+@app.route('/historico_assinaturas')
+def historico_assinaturas():
+    if 'usuario_admin' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db_connection()
+    todas_assinaturas_db = conn.execute('''
+        SELECT a.id_assinatura, u.chat_id, u.username, u.first_name, 
+               p.nome_exibicao as nome_plano, a.id_plano_assinado, a.status_pagamento, 
+               a.data_compra, a.data_liberacao, u.status_usuario
+        FROM assinaturas a
+        JOIN usuarios u ON u.chat_id = a.chat_id_usuario
+        JOIN planos p ON p.id_plano = a.id_plano_assinado
+        ORDER BY a.data_compra DESC
+    ''').fetchall()
+    conn.close()
+    
+    assinaturas_para_template = []
+    for row_original in todas_assinaturas_db:
+        row_modificada = dict(row_original)
+        row_modificada['data_compra'] = formatar_data_local(row_modificada['data_compra'])
+        if row_modificada.get('data_liberacao'):
+            row_modificada['data_liberacao'] = formatar_data_local(row_modificada['data_liberacao'])
+        assinaturas_para_template.append(row_modificada)
+        
+    return render_template('historico_assinaturas.html', assinaturas=assinaturas_para_template)    
 
 # Endpoint para o BOT obter a lista de planos (opcional, o bot pode ter isso hardcoded)
 @app.route('/api/bot/planos', methods=['GET'])
