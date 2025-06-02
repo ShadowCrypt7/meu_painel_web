@@ -9,38 +9,46 @@
     <div class="container mt-5">
         <h1 class="mb-4">Painel de Usuários Aprovados</h1>
 
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show mt-3" role="alert">
+                        {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <a href="/logout" class="btn btn-danger mb-3">Sair</a>
 
 
         <table class="table table-bordered table-striped">
-            <thead class="table-dark">
-                <tr>
-                    <th>Username / ID</th>
-                    <th>Planos</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for assinatura in assinaturas %}
-                <tr>
-                    <td>{{ assinatura.username or assinatura.first_name }} ({{ assinatura.chat_id }})</td>
-                    <td>{{ assinatura.nome_plano }}</td>
-                    <td>{{ assinatura.status_pagamento }}</td>
-                    <td>{{ assinatura.data_compra }}</td>
-                    <td>
-                        {% if assinatura.status_pagamento == 'pendente_comprovante' %}
-                        <form action="{{ url_for('aprovar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
-                            <button type="submit" class="btn btn-sm btn-success">Aprovar</button>
-                        </form>
-                        {% endif %}
-                        <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
-                            <button type="submit" class="btn btn-sm btn-warning">Revogar</button>
-                         </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>               <th>Username (ID)</th>  <th>Plano</th>               <th>Status Pagamento</th>    <th>Data Compra</th>         <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for assinatura in assinaturas %}
+        <tr>
+            <td>{{ assinatura.id_assinatura }}</td> <td>{{ assinatura.username or assinatura.first_name }} ({{ assinatura.chat_id }})</td>
+            <td>{{ assinatura.nome_plano }}</td>
+            <td>{{ assinatura.status_pagamento }}</td>
+            <td>{{ assinatura.data_compra }}</td>
+            <td>
+                {% if assinatura.status_pagamento == 'pendente_comprovante' %}
+                <form action="{{ url_for('aprovar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-success">Aprovar</button>
+                </form>
+                {% endif %}
+                <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-warning">Revogar</button>
+                </form>
+                </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
     </div>
 
 <script>

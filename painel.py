@@ -1,4 +1,5 @@
 import os
+import requests
 import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from dotenv import load_dotenv
@@ -58,6 +59,7 @@ def formatar_data_local(dt_string_do_db):
 # Por enquanto, a maioria das interações pode ser direta nas rotas.
 
 # --- Rotas de Autenticação e Interface do Admin ---
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -69,6 +71,7 @@ def login():
             return redirect(url_for('home'))
         flash('Usuário ou senha inválidos.', 'danger')
     return render_template('login.html')
+
 
 @app.route('/')
 def home():

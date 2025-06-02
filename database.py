@@ -33,7 +33,8 @@ def create_tables():
                 chat_id INTEGER PRIMARY KEY,
                 username TEXT,
                 first_name TEXT,
-                data_registro DATETIME DEFAULT CURRENT_TIMESTAMP
+                data_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+                 status_usuario CHAR(1) DEFAULT 'A' NOT NULL CHECK (status_usuario IN ('A', 'I'))
             )
         ''')
         print("DEBUG: Tabela usuarios verificada/criada.") # <--- NOVO PRINT
@@ -79,9 +80,36 @@ def create_tables():
             conn.close()
             print("DEBUG: Conexão fechada.") # <--- NOVO PRINT
 
+def try_add_status_usuario_column():
+    """Tenta adicionar a coluna status_usuario à tabela usuarios se ela não existir."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Verifica se a coluna já existe
+        cursor.execute("PRAGMA table_info(usuarios);")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if 'status_usuario' not in columns:
+            print("DEBUG: Coluna 'status_usuario' não encontrada. Tentando adicionar...")
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN status_usuario CHAR(1) DEFAULT 'A' NOT NULL CHECK (status_usuario IN ('A', 'I'));")
+            conn.commit()
+            print("DEBUG: Coluna 'status_usuario' adicionada à tabela 'usuarios'.")
+        else:
+            print("DEBUG: Coluna 'status_usuario' já existe na tabela 'usuarios'.")
+    except sqlite3.Error as e:
+        print(f"ERRO em try_add_status_usuario_column: {e}")
+    finally:
+        if conn:
+            conn.close()
+            print("DEBUG: try_add_status_usuario_column - Conexão fechada.")
+
+
 if __name__ == '__main__':
     print("DEBUG: Bloco if __name__ == '__main__' alcançado.") # <--- NOVO PRINT
     create_tables()
+    try_add_status_usuario_column() # Tenta adicionar a coluna se o DB já existia sem ela
     print("DEBUG: create_tables() concluída a partir do bloco __main__.") # <--- NOVO PRINT
 
     # Comente ou remova a parte de inserir planos por enquanto para simplificar
