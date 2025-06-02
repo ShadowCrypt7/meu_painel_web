@@ -331,7 +331,36 @@ def historico_assinaturas():
         assinaturas_para_template.append(row_modificada)
 
     return render_template('historico_assinaturas.html', assinaturas=assinaturas_para_template)
-       
+
+@app.route('/admin/reativar_usuario/<int:chat_id_usuario_para_reativar>', methods=['POST'])
+def reativar_usuario(chat_id_usuario_para_reativar):
+    if 'usuario_admin' not in session:
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    try:
+        # Atualiza o status do usuário para 'A' (Ativo)
+        cursor = conn.execute("UPDATE usuarios SET status_usuario = 'A' WHERE chat_id = ? AND status_usuario = 'I'", 
+                              (chat_id_usuario_para_reativar,))
+        usuario_reativado = cursor.rowcount # Verifica se alguma linha foi afetada
+        conn.commit()
+        
+        if usuario_reativado > 0:
+            flash(f'Usuário com Chat ID {chat_id_usuario_para_reativar} foi REATIVADO com sucesso!', 'success')
+        else:
+            flash(f'Usuário com Chat ID {chat_id_usuario_para_reativar} não foi encontrado com status "Inativo" ou já estava ativo.', 'warning')
+
+    except sqlite3.Error as e:
+        if conn: # conn pode não existir se get_db_connection() falhar
+            conn.rollback() 
+        flash(f'Erro ao reativar usuário: {e}', 'danger')
+    finally:
+        if conn:
+            conn.close()
+            
+    # Redireciona de volta para o histórico, onde a mudança será visível
+    return redirect(url_for('historico_assinaturas'))       
 
 # Endpoint para o BOT obter a lista de planos (opcional, o bot pode ter isso hardcoded)
 @app.route('/api/bot/planos', methods=['GET'])

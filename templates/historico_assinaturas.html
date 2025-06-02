@@ -63,13 +63,21 @@
                             </form>
                             {% endif %}
 
-                            {% if assinatura.status_pagamento not in ['revogado_manual', 'expirado'] %} <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline-block; margin-bottom: 5px;">
+                            {% if assinatura.status_pagamento not in ['revogado_manual', 'expirado'] %}
+                            <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline-block; margin-bottom: 5px;">
                                 <button type="submit" class="btn btn-sm btn-warning">Revogar</button>
                             </form>
                             {% endif %}
                             
-                            {% if assinatura.status_usuario == 'A' %} <form action="{{ url_for('desativar_usuario', chat_id_usuario_para_desativar=assinatura.chat_id) }}" method="post" style="display:inline-block;" onsubmit="return confirm('Isso marcará o usuário como INATIVO e ele não aparecerá mais na lista principal do painel (mas continuará neste histórico). Seus dados e histórico de assinaturas serão mantidos. Deseja continuar?');">
+                            {% if assinatura.status_usuario == 'A' %}
+                            <form action="{{ url_for('desativar_usuario', chat_id_usuario_para_desativar=assinatura.chat_id) }}" method="post" style="display:inline-block; margin-bottom: 5px;" onsubmit="return confirm('Isso marcará o usuário como INATIVO. Ele não aparecerá mais na lista principal do painel, mas continuará neste histórico. Deseja continuar?');">
                                 <button type="submit" class="btn btn-sm btn-dark">Deletar Usuário</button>
+                            </form>
+                            {% endif %}
+
+                            {% if assinatura.status_usuario == 'I' %}
+                            <form action="{{ url_for('reativar_usuario', chat_id_usuario_para_reativar=assinatura.chat_id) }}" method="post" style="display:inline-block; margin-bottom: 5px;">
+                                <button type="submit" class="btn btn-sm btn-info">Reativar Usuário</button>
                             </form>
                             {% endif %}
                         </td>
