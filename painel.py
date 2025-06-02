@@ -308,19 +308,20 @@ def api_bot_verificar_status():
 def historico_assinaturas():
     if 'usuario_admin' not in session:
         return redirect(url_for('login'))
-    
+
     conn = get_db_connection()
     todas_assinaturas_db = conn.execute('''
         SELECT a.id_assinatura, u.chat_id, u.username, u.first_name, 
                p.nome_exibicao as nome_plano, a.id_plano_assinado, a.status_pagamento, 
-               a.data_compra, a.data_liberacao, u.status_usuario
+               a.data_compra, a.data_liberacao, u.status_usuario -- Incluindo status do usuário para info
         FROM assinaturas a
         JOIN usuarios u ON u.chat_id = a.chat_id_usuario
         JOIN planos p ON p.id_plano = a.id_plano_assinado
         ORDER BY a.data_compra DESC
     ''').fetchall()
     conn.close()
-    
+
+    # Processar as datas para o fuso horário local
     assinaturas_para_template = []
     for row_original in todas_assinaturas_db:
         row_modificada = dict(row_original)
@@ -328,8 +329,9 @@ def historico_assinaturas():
         if row_modificada.get('data_liberacao'):
             row_modificada['data_liberacao'] = formatar_data_local(row_modificada['data_liberacao'])
         assinaturas_para_template.append(row_modificada)
-        
-    return render_template('historico_assinaturas.html', assinaturas=assinaturas_para_template)    
+
+    return render_template('historico_assinaturas.html', assinaturas=assinaturas_para_template)
+       
 
 # Endpoint para o BOT obter a lista de planos (opcional, o bot pode ter isso hardcoded)
 @app.route('/api/bot/planos', methods=['GET'])
@@ -342,6 +344,34 @@ def api_bot_get_planos():
     conn.close()
     planos = [dict(p) for p in planos_db]
     return jsonify({"status": "sucesso", "planos": planos}), 200
+
+@app.route('/admin/desativar_usuario/<int:chat_id_usuario_para_desativar>', methods=['POST'])
+def desativar_usuario(chat_id_usuario_para_desativar):
+    if 'usuario_admin' not in session:
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    try:
+        # Atualiza o status do usuário para 'I' (Inativo)
+        cursor = conn.execute("UPDATE usuarios SET status_usuario = 'I' WHERE chat_id = ?", (chat_id_usuario_para_desativar,))
+        usuario_desativado = cursor.rowcount # Verifica se alguma linha foi afetada
+        conn.commit()
+        
+        if usuario_desativado > 0:
+            flash(f'Usuário com Chat ID {chat_id_usuario_para_desativar} foi desativado com sucesso!', 'success')
+        else:
+            flash(f'Usuário com Chat ID {chat_id_usuario_para_desativar} não encontrado ou já estava inativo.', 'warning')
+
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback() 
+        flash(f'Erro ao desativar usuário: {e}', 'danger')
+    finally:
+        if conn:
+            conn.close()
+            
+    return redirect(url_for('home'))
 
 
 if __name__ == '__main__':

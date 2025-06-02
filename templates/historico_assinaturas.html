@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Histórico de Assinaturas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h1 class="mb-4">Histórico Completo de Assinaturas</h1>
+
+        <nav class="nav nav-pills mb-3">
+            <a class="nav-link {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}">Painel Principal</a>
+            <a class="nav-link {% if request.endpoint == 'historico_assinaturas' %}active{% endif %}" href="{{ url_for('historico_assinaturas') }}">Histórico Completo</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger ms-auto">Sair</a>
+        </nav>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show mt-3" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <table class="table table-bordered table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Username (ID)</th>
+                    <th>Plano</th>
+                    <th>Status Assinatura</th>
+                    <th>Data Compra</th>
+                    <th>Data Liberação</th>
+                    <th>Status Usuário</th> <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if assinaturas %}
+                    {% for assinatura in assinaturas %}
+                    <tr>
+                        <td>{{ assinatura.id_assinatura }}</td>
+                        <td>{{ assinatura.username or assinatura.first_name }} ({{ assinatura.chat_id }})</td>
+                        <td>{{ assinatura.nome_plano }}</td>
+                        <td>{{ assinatura.status_pagamento }}</td>
+                        <td>{{ assinatura.data_compra }}</td>
+                        <td>{{ assinatura.data_liberacao or 'N/A' }}</td>
+                        <td>
+                            {% if assinatura.status_usuario == 'A' %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% elif assinatura.status_usuario == 'I' %}
+                                <span class="badge bg-secondary">Inativo</span>
+                            {% else %}
+                                {{ assinatura.status_usuario or 'N/D' }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if assinatura.status_pagamento == 'pendente_comprovante' %}
+                            <form action="{{ url_for('aprovar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline-block; margin-bottom: 5px;">
+                                <button type="submit" class="btn btn-sm btn-success">Aprovar</button>
+                            </form>
+                            {% endif %}
+
+                            {% if assinatura.status_pagamento not in ['revogado_manual', 'expirado'] %} <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline-block; margin-bottom: 5px;">
+                                <button type="submit" class="btn btn-sm btn-warning">Revogar</button>
+                            </form>
+                            {% endif %}
+                            
+                            {% if assinatura.status_usuario == 'A' %} <form action="{{ url_for('desativar_usuario', chat_id_usuario_para_desativar=assinatura.chat_id) }}" method="post" style="display:inline-block;" onsubmit="return confirm('Isso marcará o usuário como INATIVO e ele não aparecerá mais na lista principal do painel (mas continuará neste histórico). Seus dados e histórico de assinaturas serão mantidos. Deseja continuar?');">
+                                <button type="submit" class="btn btn-sm btn-dark">Deletar Usuário</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center">Nenhum registro de assinatura encontrado.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    </body>
+</html>
