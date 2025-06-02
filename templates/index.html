@@ -19,13 +19,17 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        <a href="/logout" class="btn btn-danger mb-3">Sair</a>
+        <nav class="nav nav-pills mb-3">
+            <a class="nav-link {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}">Painel Principal</a>
+            <a class="nav-link {% if request.endpoint == 'historico_assinaturas' %}active{% endif %}" href="{{ url_for('historico_assinaturas') }}">Histórico Completo</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger ms-auto">Sair</a>
+        </nav>
 
 
         <table class="table table-bordered table-striped">
     <thead class="table-dark">
         <tr>
-            <th>ID</th>               <th>Username (ID)</th>  <th>Plano</th>               <th>Status Pagamento</th>    <th>Data Compra</th>         <th>Ações</th>
+            <th>ID Ass.</th>               <th>Username (User ID)</th>  <th>Plano</th>               <th>Status Pagamento</th>    <th>Data Compra</th>         <th>Ações</th>
         </tr>
     </thead>
     <tbody>

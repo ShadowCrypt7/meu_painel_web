@@ -12,7 +12,6 @@
         <nav class="nav nav-pills mb-3">
             <a class="nav-link {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}">Painel Principal</a>
             <a class="nav-link {% if request.endpoint == 'historico_assinaturas' %}active{% endif %}" href="{{ url_for('historico_assinaturas') }}">Histórico Completo</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-danger ms-auto">Sair</a>
         </nav>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
