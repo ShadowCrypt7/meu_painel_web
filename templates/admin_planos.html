@@ -43,9 +43,30 @@
                 </tr>
             </thead>
             <tbody>
+                {% if planos %}
+                    {% for plano in planos %}
+                    <tr>
+                        <td>{{ plano.id_plano }}</td>
+                        <td>{{ plano.nome_exibicao }}</td>
+                        <td>{{ "%.2f"|format(plano.preco|float) }}</td>
+                        <td>{{ plano.descricao }}</td>
+                        <td><a href="{{ plano.link_conteudo }}" target="_blank" rel="noopener noreferrer">Ver Link</a></td>
+                        <td>
+                            {% if plano.ativo %}
+                                <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            (Ações a implementar) </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
                 <tr>
-                    <td colspan="7" class="text-center">Teste radical - Lista de planos temporariamente removida.</td>
+                    <td colspan="7" class="text-center">Nenhum plano cadastrado.</td>
                 </tr>
+                {% endif %}
             </tbody>
         </table>
     </div>
