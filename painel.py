@@ -539,6 +539,36 @@ def admin_editar_plano(id_plano_para_editar):
         else:
             flash('Plano não encontrado.', 'danger')
             return redirect(url_for('admin_planos'))
+        
+@app.route('/admin/planos/toggle_ativo/<id_plano_toggle>', methods=['POST'])
+def admin_toggle_ativo_plano(id_plano_toggle):
+    if 'usuario_admin' not in session:
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    try:
+        # Primeiro, busca o status atual do plano
+        plano_atual = conn.execute('SELECT ativo FROM planos WHERE id_plano = ?', (id_plano_toggle,)).fetchone()
+
+        if plano_atual:
+            novo_status_ativo = not plano_atual['ativo'] # Inverte o status atual
+            conn.execute('UPDATE planos SET ativo = ? WHERE id_plano = ?', (novo_status_ativo, id_plano_toggle))
+            conn.commit()
+            acao = "ativado" if novo_status_ativo else "desativado"
+            flash(f'Plano "{id_plano_toggle}" foi {acao} com sucesso!', 'success')
+        else:
+            flash(f'Plano "{id_plano_toggle}" não encontrado.', 'danger')
+        
+    except sqlite3.Error as e:
+        # conn.rollback() # UPDATE de uma linha não precisa de rollback explícito se falhar antes do commit, mas não faz mal
+        flash(f'Erro no banco de dados ao alterar status do plano: {e}', 'danger')
+    finally:
+        if conn:
+            conn.close()
+            
+    return redirect(url_for('admin_planos'))
+
 
 if __name__ == '__main__':
     # Porta para o Render.com (pega da variável de ambiente PORT) ou 5001 localmente
