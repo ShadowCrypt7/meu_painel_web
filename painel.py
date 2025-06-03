@@ -462,6 +462,84 @@ def admin_adicionar_plano():
     # Para o método GET ou se houver erro no POST e precisarmos mostrar o form novamente
     return render_template('admin_plano_form.html', acao="Adicionar", plano=None)
 
+@app.route('/admin/planos/editar/<id_plano_para_editar>', methods=['GET', 'POST'])
+def admin_editar_plano(id_plano_para_editar):
+    if 'usuario_admin' not in session:
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    
+    if request.method == 'POST':
+        # Processar o formulário de edição enviado
+        nome_exibicao = request.form['nome_exibicao']
+        try:
+            preco = float(request.form['preco'])
+        except ValueError:
+            flash('Preço inválido. Use ponto como separador decimal (ex: 19.99).', 'danger')
+            # Para re-renderizar o formulário com os dados atuais em caso de erro:
+            plano_atual_para_form = { # Recria o dicionário do plano para o formulário
+                'id_plano': id_plano_para_editar, # O ID não muda
+                'nome_exibicao': nome_exibicao,
+                'preco': request.form['preco'], # Mantém o valor inválido para o usuário corrigir
+                'descricao': request.form['descricao'],
+                'link_conteudo': request.form['link_conteudo'],
+                'ativo': 'ativo' in request.form
+            }
+            return render_template('admin_plano_form.html', acao="Editar", plano=plano_atual_para_form)
+
+        descricao = request.form['descricao']
+        link_conteudo = request.form['link_conteudo']
+        ativo = 'ativo' in request.form # True se o checkbox 'ativo' estiver marcado
+
+        if not all([nome_exibicao, preco, link_conteudo]): # ID do plano não é editável, descrição é opcional
+            flash('Nome de Exibição, Preço e Link do Conteúdo são obrigatórios.', 'danger')
+            plano_atual_para_form = {
+                'id_plano': id_plano_para_editar,
+                'nome_exibicao': nome_exibicao,
+                'preco': preco,
+                'descricao': descricao,
+                'link_conteudo': link_conteudo,
+                'ativo': ativo
+            }
+            return render_template('admin_plano_form.html', acao="Editar", plano=plano_atual_para_form)
+
+        try:
+            conn.execute('''
+                UPDATE planos 
+                SET nome_exibicao = ?, preco = ?, descricao = ?, link_conteudo = ?, ativo = ?
+                WHERE id_plano = ?
+            ''', (nome_exibicao, preco, descricao, link_conteudo, ativo, id_plano_para_editar))
+            conn.commit()
+            flash(f'Plano "{nome_exibicao}" atualizado com sucesso!', 'success')
+            conn.close()
+            return redirect(url_for('admin_planos'))
+        except sqlite3.Error as e:
+            conn.rollback()
+            flash(f'Erro no banco de dados ao atualizar plano: {e}', 'danger')
+            conn.close()
+            # Em caso de erro no DB, recarrega o formulário com os dados que o usuário tentou enviar
+            plano_com_erro = {
+                'id_plano': id_plano_para_editar, 
+                'nome_exibicao': nome_exibicao, 
+                'preco': preco, 
+                'descricao': descricao, 
+                'link_conteudo': link_conteudo, 
+                'ativo': ativo
+            }
+            return render_template('admin_plano_form.html', acao="Editar", plano=plano_com_erro)
+
+    else: # Método GET: Mostrar o formulário preenchido com os dados do plano
+        plano_db = conn.execute('SELECT id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo FROM planos WHERE id_plano = ?', 
+                                (id_plano_para_editar,)).fetchone()
+        conn.close()
+        
+        if plano_db:
+            return render_template('admin_plano_form.html', acao="Editar", plano=plano_db)
+        else:
+            flash('Plano não encontrado.', 'danger')
+            return redirect(url_for('admin_planos'))
+
 if __name__ == '__main__':
     # Porta para o Render.com (pega da variável de ambiente PORT) ou 5001 localmente
     port = int(os.getenv("PORT", 5001)) 

@@ -59,7 +59,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            (Ações a implementar) </td>
+                            <a href="{{ url_for('admin_editar_plano', id_plano_para_editar=plano.id_plano) }}" class="btn btn-sm btn-primary mb-1">Editar</a>
+                            (Outras ações a implementar) </td>
                     </tr>
                     {% endfor %}
                 {% else %}
