@@ -402,6 +402,64 @@ def desativar_usuario(chat_id_usuario_para_desativar):
             
     return redirect(url_for('home'))
 
+@app.route('/admin/planos')
+def admin_planos():
+    if 'usuario_admin' not in session:
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    planos_db = conn.execute('SELECT id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo FROM planos ORDER BY nome_exibicao').fetchall()
+    conn.close()
+
+    # Criaremos um novo template para esta página
+    return render_template('admin_planos.html', planos=planos_db)
+
+@app.route('/admin/planos/novo', methods=['GET', 'POST'])
+def admin_adicionar_plano():
+    if 'usuario_admin' not in session:
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        id_plano = request.form['id_plano']
+        nome_exibicao = request.form['nome_exibicao']
+        try:
+            preco = float(request.form['preco'])
+        except ValueError:
+            flash('Preço inválido. Use ponto como separador decimal (ex: 19.99).', 'danger')
+            # Re-renderiza o formulário, mas idealmente manteria os dados já preenchidos
+            return render_template('admin_plano_form.html', acao="Adicionar", plano=request.form) 
+
+        descricao = request.form['descricao']
+        link_conteudo = request.form['link_conteudo']
+        # O checkbox 'ativo' envia 'on' se marcado, ou não envia nada se desmarcado
+        ativo = 'ativo' in request.form 
+
+        if not all([id_plano, nome_exibicao, preco, link_conteudo]): # Descrição é opcional
+            flash('ID do Plano, Nome de Exibição, Preço e Link do Conteúdo são obrigatórios.', 'danger')
+            return render_template('admin_plano_form.html', acao="Adicionar", plano=request.form)
+
+        conn = get_db_connection()
+        try:
+            conn.execute('''
+                INSERT INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo))
+            conn.commit()
+            flash(f'Plano "{nome_exibicao}" adicionado com sucesso!', 'success')
+            return redirect(url_for('admin_planos'))
+        except sqlite3.IntegrityError: # Ocorre se id_plano (PRIMARY KEY) já existir
+            conn.rollback()
+            flash(f'Erro: O ID do Plano "{id_plano}" já existe. Escolha outro ID.', 'danger')
+        except sqlite3.Error as e:
+            conn.rollback()
+            flash(f'Erro no banco de dados ao adicionar plano: {e}', 'danger')
+        finally:
+            conn.close()
+
+    # Para o método GET ou se houver erro no POST e precisarmos mostrar o form novamente
+    return render_template('admin_plano_form.html', acao="Adicionar", plano=None)
 
 if __name__ == '__main__':
     # Porta para o Render.com (pega da variável de ambiente PORT) ou 5001 localmente
