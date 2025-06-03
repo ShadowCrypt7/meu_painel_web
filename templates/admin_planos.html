@@ -61,12 +61,17 @@
                         <td>
                             <a href="{{ url_for('admin_editar_plano', id_plano_para_editar=plano.id_plano) }}" class="btn btn-sm btn-primary mb-1">Editar</a>
                             
-                            <form action="{{ url_for('admin_toggle_ativo_plano', id_plano_toggle=plano.id_plano) }}" method="post" style="display:inline-block;">
+                            <form action="{{ url_for('admin_toggle_ativo_plano', id_plano_toggle=plano.id_plano) }}" method="post" style="display:inline-block; margin-bottom: 5px;">
                                 {% if plano.ativo %}
                                 <button type="submit" class="btn btn-sm btn-warning">Desativar</button>
                                 {% else %}
                                 <button type="submit" class="btn btn-sm btn-info">Ativar</button>
                                 {% endif %}
+                            </form>
+
+                            <form action="{{ url_for('admin_excluir_plano', id_plano_para_excluir=plano.id_plano) }}" method="post" style="display:inline-block;" 
+                                onsubmit="return confirm('TEM CERTEZA ABSOLUTA que deseja excluir este plano PERMANENTEMENTE? Esta ação não pode ser desfeita e só funcionará se não houver nenhuma assinatura vinculada a este plano.');">
+                                <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
                             </form>
                         </td>
                     </tr>

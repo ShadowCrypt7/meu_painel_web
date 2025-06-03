@@ -569,6 +569,37 @@ def admin_toggle_ativo_plano(id_plano_toggle):
             
     return redirect(url_for('admin_planos'))
 
+@app.route('/admin/planos/excluir/<id_plano_para_excluir>', methods=['POST'])
+def admin_excluir_plano(id_plano_para_excluir):
+    if 'usuario_admin' not in session:
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('login'))
+
+    conn = get_db_connection()
+    try:
+        # 1. Verificar se existem assinaturas vinculadas a este plano
+        cursor_check = conn.execute('SELECT COUNT(*) as count FROM assinaturas WHERE id_plano_assinado = ?', (id_plano_para_excluir,))
+        resultado_check = cursor_check.fetchone()
+
+        if resultado_check and resultado_check['count'] > 0:
+            flash(f'Erro: O plano "{id_plano_para_excluir}" não pode ser excluído pois existem {resultado_check["count"]} assinatura(s) vinculada(s) a ele. Considere desativá-lo.', 'danger')
+        else:
+            # 2. Se não houver assinaturas, pode excluir o plano
+            cursor_delete = conn.execute('DELETE FROM planos WHERE id_plano = ?', (id_plano_para_excluir,))
+            conn.commit()
+            if cursor_delete.rowcount > 0:
+                flash(f'Plano "{id_plano_para_excluir}" excluído permanentemente com sucesso!', 'success')
+            else:
+                flash(f'Plano "{id_plano_para_excluir}" não encontrado para exclusão.', 'warning')
+                
+    except sqlite3.Error as e:
+        # conn.rollback() # DELETE de uma linha geralmente não precisa de rollback explícito se falhar antes do commit
+        flash(f'Erro no banco de dados ao tentar excluir plano: {e}', 'danger')
+    finally:
+        if conn:
+            conn.close()
+            
+    return redirect(url_for('admin_planos'))
 
 if __name__ == '__main__':
     # Porta para o Render.com (pega da variável de ambiente PORT) ou 5001 localmente
