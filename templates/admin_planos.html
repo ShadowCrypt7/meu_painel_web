@@ -58,7 +58,7 @@
                                 <span class="badge bg-secondary">Inativo</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <!--<td>
                             <a href="{{ url_for('admin_editar_plano', id_plano_para_editar=plano.id_plano) }}" class="btn btn-sm btn-primary mb-1">Editar</a>
                             <form action="{{ url_for('admin_toggle_ativo_plano', id_plano_toggle=plano.id_plano) }}" method="post" style="display:inline-block;">
                                 {% if plano.ativo %}
@@ -67,7 +67,7 @@
                                 <button type="submit" class="btn btn-sm btn-info">Ativar</button>
                                 {% endif %}
                             </form>
-                        </td>
+                        </td>-->
                     </tr>
                     {% endfor %}
                 {% else %}
