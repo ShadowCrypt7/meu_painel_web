@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo 
 
 # Importar funções do nosso módulo de banco de dados
-from database import get_db_connection, create_tables, try_add_status_usuario_column
+from database import get_db_connection, create_tables, try_add_ativo_column_to_planos, try_add_status_usuario_column
 
 # Defina o seu fuso horário local
 # Para Goiás (que geralmente segue o horário de Brasília):
@@ -16,6 +16,7 @@ FUSO_HORARIO_LOCAL = ZoneInfo("America/Sao_Paulo")
 
 load_dotenv()
 try_add_status_usuario_column()
+try_add_ativo_column_to_planos()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY_PAINEL")
 
@@ -460,6 +461,41 @@ def admin_adicionar_plano():
 
     # Para o método GET ou se houver erro no POST e precisarmos mostrar o form novamente
     return render_template('admin_plano_form.html', acao="Adicionar", plano=None)
+
+@app.route('/admin/setup_planos_iniciais_uma_vez_AGORA')
+def setup_planos_iniciais_agora():
+    if 'usuario_admin' not in session:
+        return "Não autorizado", 401
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    mensagens_resultado = []
+    try:
+        link_basico = os.getenv("GRUPO_EXCLUSIVO")
+        link_premium = os.getenv("GRUPO_EXCLUSIVO")
+
+        # Lista de planos COM a coluna 'ativo' (o último valor é para 'ativo', 1 = True)
+        planos_para_inserir = [
+            ('plano_mensal_basico', '🔥 Mensal Básico 🔥', 19.99, 'Plano Mensal com mais de 100 fotos e vídeos', link_basico, 1),
+            ('plano_mensal_premium', '😈 Mensal Premium 😈', 39.99, 'Plano Premium com tudo incluso + VIP + Contato', link_premium, 1)
+        ]
+
+        for plano_data in planos_para_inserir:
+            try:
+                # Query INSERT COM a coluna 'ativo' e com 6 placeholders (?)
+                cursor.execute("INSERT OR IGNORE INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo) VALUES (?, ?, ?, ?, ?, ?)",
+                               plano_data) # INSERT OR IGNORE para não dar erro se já existir
+                mensagens_resultado.append(f"Plano '{plano_data[0]}' verificado/inserido.")
+            except sqlite3.IntegrityError: # Embora INSERT OR IGNORE deva prevenir isso para PK
+                mensagens_resultado.append(f"Plano '{plano_data[0]}' já existe (IntegrityError).")
+        
+        conn.commit()
+        conn.close()
+        return "<br>".join(mensagens_resultado) + "<br><br>Processo concluído. Remova ou comente esta rota após o uso."
+    except Exception as e:
+        if conn:
+            conn.close()
+        return f"Erro ao inserir planos: {str(e)}"
 
 if __name__ == '__main__':
     # Porta para o Render.com (pega da variável de ambiente PORT) ou 5001 localmente

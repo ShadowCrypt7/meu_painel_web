@@ -105,6 +105,64 @@ def try_add_status_usuario_column():
             conn.close()
             print("DEBUG: try_add_status_usuario_column - Conexão fechada.")
 
+def try_add_ativo_column_to_planos():
+    """Tenta adicionar a coluna 'ativo' à tabela 'planos' se ela não existir."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verifica se a coluna já existe
+        cursor.execute("PRAGMA table_info(planos);")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'ativo' not in columns:
+            print("DEBUG: Coluna 'ativo' não encontrada na tabela 'planos'. Tentando adicionar...")
+            # Adiciona a coluna com um valor padrão. Para SQLite, BOOLEAN é frequentemente INTEGER 0 ou 1.
+            # DEFAULT 1 significa TRUE (ativo)
+            cursor.execute("ALTER TABLE planos ADD COLUMN ativo INTEGER DEFAULT 1;") 
+            conn.commit()
+            print("DEBUG: Coluna 'ativo' (INTEGER DEFAULT 1) adicionada à tabela 'planos'.")
+        else:
+            print("DEBUG: Coluna 'ativo' já existe na tabela 'planos'.")
+    except sqlite3.Error as e:
+        print(f"ERRO em try_add_ativo_column_to_planos: {e}")
+    finally:
+        if conn:
+            conn.close()
+            print("DEBUG: try_add_ativo_column_to_planos - Conexão fechada.")
+
+# No final do database.py, dentro do if __name__ == '__main__':
+if __name__ == '__main__':
+    print("DEBUG: Bloco if __name__ == '__main__' em database.py alcançado.")
+    create_tables() # Garante que as tabelas base existem (aqui 'planos' já tem 'ativo' na definição)
+    try_add_status_usuario_column()
+    try_add_ativo_column_to_planos() # <<< ADICIONE A CHAMADA AQUI
+    print("DEBUG: Funções de setup de database.py concluídas a partir do bloco __main__.")
+    
+    # Ajuste a inserção de planos de exemplo para INCLUIR o valor para 'ativo' (6ª coluna)
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Seus links de GRUPO_EXCLUSIVO...
+        link_basico = os.getenv("GRUPO_EXCLUSIVO")
+        link_premium = os.getenv("GRUPO_EXCLUSIVO")
+
+        # Inserindo com 6 valores, incluindo 'ativo' (o último 'True' ou '1')
+        cursor.execute("INSERT OR IGNORE INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo) VALUES (?, ?, ?, ?, ?, ?)",
+                       ('plano_mensal_basico', '🔥 Mensal Básico 🔥', 19.99, 'Plano Mensal com mais de 100 fotos e vídeos', link_basico, 1)) # 1 para True
+        cursor.execute("INSERT OR IGNORE INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo) VALUES (?, ?, ?, ?, ?, ?)",
+                       ('plano_mensal_premium', '😈 Mensal Premium 😈', 39.99, 'Plano Premium com tudo incluso + VIP + Contato', link_premium, 1)) # 1 para True
+        conn.commit()
+        print("Planos de exemplo inseridos/verificados (com coluna ativo).")
+    except sqlite3.IntegrityError:
+        print("Planos de exemplo já existem ou houve um erro de integridade.")
+    except Exception as e_planos:
+        print(f"Erro ao inserir planos de exemplo: {e_planos}")
+    finally:
+        if conn:
+            conn.close()            
+
 
 if __name__ == '__main__':
     print("DEBUG: Bloco if __name__ == '__main__' alcançado.") # <--- NOVO PRINT
