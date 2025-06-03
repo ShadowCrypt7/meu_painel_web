@@ -43,38 +43,9 @@
                 </tr>
             </thead>
             <tbody>
-                {% if planos %}
-                    {% for plano in planos %}
-                    <tr>
-                        <td>{{ plano.id_plano }}</td>
-                        <td>{{ plano.nome_exibicao }}</td>
-                        <td>{{ "%.2f"|format(plano.preco|float) }}</td>
-                        <td>{{ plano.descricao }}</td>
-                        <td><a href="{{ plano.link_conteudo }}" target="_blank" rel="noopener noreferrer">Ver Link</a></td>
-                        <td>
-                            {% if plano.ativo %}
-                                <span class="badge bg-success">Ativo</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Inativo</span>
-                            {% endif %}
-                        </td>
-                        <!--<td>
-                            <a href="{{ url_for('admin_editar_plano', id_plano_para_editar=plano.id_plano) }}" class="btn btn-sm btn-primary mb-1">Editar</a>
-                            <form action="{{ url_for('admin_toggle_ativo_plano', id_plano_toggle=plano.id_plano) }}" method="post" style="display:inline-block;">
-                                {% if plano.ativo %}
-                                <button type="submit" class="btn btn-sm btn-warning">Desativar</button>
-                                {% else %}
-                                <button type="submit" class="btn btn-sm btn-info">Ativar</button>
-                                {% endif %}
-                            </form>
-                        </td>-->
-                    </tr>
-                    {% endfor %}
-                {% else %}
                 <tr>
-                    <td colspan="7" class="text-center">Nenhum plano cadastrado.</td>
+                    <td colspan="7" class="text-center">Teste radical - Lista de planos temporariamente removida.</td>
                 </tr>
-                {% endif %}
             </tbody>
         </table>
     </div>
