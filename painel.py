@@ -56,10 +56,12 @@ def formatar_data_local(dt_string_do_db):
         print(f"Erro ao formatar data {dt_string_do_db}: {e}")
         return dt_string_do_db # Retorna original em caso de outro erro
 
+
 # --- Funções de Banco de Dados Específicas do Painel (se necessário) ---
 # Por enquanto, a maioria das interações pode ser direta nas rotas.
 
 # --- Rotas de Autenticação e Interface do Admin ---
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -118,11 +120,13 @@ def home():
     
     return render_template('index.html', assinaturas=assinaturas_para_template)
 
+
 @app.route('/logout')
 def logout():
     session.pop('usuario_admin', None)
     flash('Você foi desconectado.', 'info')
     return redirect(url_for('login'))
+
 
 @app.route('/aprovar_assinatura/<int:id_assinatura>', methods=['POST'])
 def aprovar_assinatura(id_assinatura):
@@ -192,6 +196,7 @@ def aprovar_assinatura(id_assinatura):
             conn.close()
     return redirect(url_for('home'))
 
+
 @app.route('/revogar_assinatura/<int:id_assinatura>', methods=['POST'])
 def revogar_assinatura(id_assinatura):
     if 'usuario_admin' not in session:
@@ -215,7 +220,9 @@ def revogar_assinatura(id_assinatura):
         conn.close()
     return redirect(url_for('home'))
 
+
 # --- ROTAS DE API PARA O BOT ---
+
 
 # Endpoint para o BOT registrar um usuário e uma intenção de assinatura (após seleção de plano / envio de comprovante)
 @app.route('/api/bot/registrar_assinatura', methods=['POST'])
@@ -257,6 +264,7 @@ def api_bot_registrar_assinatura():
         return jsonify({"status": "erro", "mensagem": f"Erro no banco de dados: {e}"}), 500
     finally:
         conn.close()
+
 
 # Endpoint para o BOT verificar o status de uma assinatura de um usuário
 @app.route('/api/bot/verificar_status', methods=['POST'])
@@ -305,6 +313,7 @@ def api_bot_verificar_status():
         conn.close()
         return jsonify({"status": "erro", "mensagem": f"Erro no banco de dados: {e}"}), 500
     
+
 @app.route('/historico_assinaturas')
 def historico_assinaturas():
     if 'usuario_admin' not in session:
@@ -332,6 +341,7 @@ def historico_assinaturas():
         assinaturas_para_template.append(row_modificada)
 
     return render_template('historico_assinaturas.html', assinaturas=assinaturas_para_template)
+
 
 @app.route('/admin/reativar_usuario/<int:chat_id_usuario_para_reativar>', methods=['POST'])
 def reativar_usuario(chat_id_usuario_para_reativar):
@@ -363,6 +373,7 @@ def reativar_usuario(chat_id_usuario_para_reativar):
     # Redireciona de volta para o histórico, onde a mudança será visível
     return redirect(url_for('historico_assinaturas'))       
 
+
 # Endpoint para o BOT obter a lista de planos (opcional, o bot pode ter isso hardcoded)
 @app.route('/api/bot/planos', methods=['GET'])
 def api_bot_get_planos():
@@ -374,6 +385,7 @@ def api_bot_get_planos():
     conn.close()
     planos = [dict(p) for p in planos_db]
     return jsonify({"status": "sucesso", "planos": planos}), 200
+
 
 @app.route('/admin/desativar_usuario/<int:chat_id_usuario_para_desativar>', methods=['POST'])
 def desativar_usuario(chat_id_usuario_para_desativar):
@@ -402,6 +414,7 @@ def desativar_usuario(chat_id_usuario_para_desativar):
             conn.close()
             
     return redirect(url_for('home'))
+
 
 @app.route('/admin/excluir_usuario_permanente/<int:chat_id_para_excluir>', methods=['POST'])
 def admin_excluir_usuario_permanente(chat_id_para_excluir):
@@ -440,9 +453,6 @@ def admin_excluir_usuario_permanente(chat_id_para_excluir):
             conn.close()
 
     return redirect(url_for('historico_assinaturas'))                        
-
-
-
 
 
 @app.route('/admin/planos')
