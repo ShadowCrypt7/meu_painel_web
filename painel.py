@@ -403,6 +403,48 @@ def desativar_usuario(chat_id_usuario_para_desativar):
             
     return redirect(url_for('home'))
 
+@app.route('/admin/excluir_usuario_permanente/<int:chat_id_para_excluir>', methods=['POST'])
+def admin_excluir_usuario_permanente(chat_id_para_excluir):
+    if 'usuario_admin' not in session:
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('login'))
+    conn = get_db_connection()
+    try:
+
+        # Iniciar uma transação para garantir que ambas as operações (ou nenhuma) sejam concluídas
+        conn.execute("BEGIN TRANSACTION")
+
+        # 1. Excluir todas as assinaturas associadas ao usuário
+        cursor_assinaturas = conn.execute("DELETE FROM assinaturas WHERE chat_id_usuario = ?", (chat_id_para_excluir,))
+        assinaturas_removidas_count = cursor_assinaturas.rowcount
+
+        # 2. Excluir o usuário da tabela de usuários
+        cursor_usuario = conn.execute("DELETE FROM usuarios WHERE chat_id = ?", (chat_id_para_excluir,))
+        usuario_removido_count = cursor_assinaturas.rowcount
+
+        conn.commit() # Se chegou até aqui sem erros, confirma as exclusões
+
+        if usuario_removido_count > 0:
+            flash(f'Usuário com Chat ID {chat_id_para_excluir} e {assinaturas_removidas_count} assinaturas(s) foram PERMANENTEMENTE excluídos!', 'success')
+        elif assinaturas_removidas_count > 0: # Usuário já não existia, mas tinha assinaturas órfãs (improvável com FK)
+            flash(f'{assinaturas_removidas_count} assinatura(s) do Chat ID {chat_id_para_excluir} foram PERMANENTEMENTE excluídas. Usuário não encontrado.', 'warning')
+        else:
+            flash(f'Nenhum usuário ou assinatura encontrada para o Chat ID {chat_id_para_excluir} para exclusão.', 'info')
+
+    except sqlite3 as e:
+        if conn:
+            conn.rollback() # Desfaz a transação em caso de erro
+        flash(f'Erro de banco de dados ao tentar excluir permanentemente o usuário {e}', 'danger')
+    finally:
+        if conn:
+            conn.close()
+
+    return redirect(url_for('historico_assinaturas'))                        
+
+
+
+
+
 @app.route('/admin/planos')
 def admin_planos():
     if 'usuario_admin' not in session:
