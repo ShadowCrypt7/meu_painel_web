@@ -29,48 +29,54 @@
 
 
         <table class="table table-bordered table-striped">
-    <thead class="table-dark">
-        <tr>
-            <th>ID Ass.</th>
-            <th>Username (User ID)</th>
-            <th>Plano</th>
-            <th>Status Assinatura</th>
-            <th>Data Compra</th>
-            <th>Data Liberação</th>
-            <th>Ações</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for assinatura in assinaturas %}
-        <tr>
-            <td>{{ assinatura.id_assinatura }}</td> <td>{{ assinatura.username or assinatura.first_name }} ({{ assinatura.chat_id }})</td>
-            <td>{{ assinatura.nome_plano }}</td>
-            <td>{{ assinatura.status_pagamento }}</td>
-            <td>{{ assinatura.data_compra }}</td>
-            <td>{{ assinatura.data_liberacao or 'N/A' }}</td>
-            <td>
-                {% if assinatura.status_pagamento == 'pendente_comprovante' %}
-                <form action="{{ url_for('aprovar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
-                    <button type="submit" class="btn btn-sm btn-success">Aprovar</button>
-                </form>
-                {% endif %}
+            <thead class="table-dark">
+                <tr>
+                    <th>ID Ass.</th>
+                    <th>Username (User ID)</th>
+                    <th>Plano</th>
+                    <th>Status Assinatura</th>
+                    <th>Data Compra</th>
+                    <th>Data Liberação</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if assinaturas %}
+                    {% for assinatura in assinaturas %}
+                    <tr>
+                        <td>{{ assinatura.id_assinatura }}</td> <td>{{ assinatura.username or assinatura.first_name }} ({{ assinatura.chat_id }})</td>
+                        <td>{{ assinatura.nome_plano }}</td>
+                        <td>{{ assinatura.status_pagamento }}</td>
+                        <td>{{ assinatura.data_compra }}</td>
+                        <td>{{ assinatura.data_liberacao or 'N/A' }}</td>
+                        <td>
+                            {% if assinatura.status_pagamento == 'pendente_comprovante' %}
+                            <form action="{{ url_for('aprovar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-success">Aprovar</button>
+                            </form>
+                            {% endif %}
 
-                {% if assinatura.status_pagamento not in ['revogado_manual', 'expirado'] %}
-                <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
-                    <button type="submit" class="btn btn-sm btn-warning">Revogar</button>
-                </form>
-                {% endif %}
-                
-                {% if assinatura.status_usuario == 'A' %}
-                <form action="{{ url_for('desativar_usuario', chat_id_usuario_para_desativar=assinatura.chat_id) }}" method="post" style="display:inline;" onsubmit="return confirm('Isso marcará o usuário como INATIVO e ele não aparecerá mais na lista principal. Seus dados e histórico de assinaturas serão mantidos. Deseja continuar?');">
-                    <button type="submit" class="btn btn-sm btn-dark">Desativar Usuário</button>
-                </form>
-                {% endif %}
-                </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                            {% if assinatura.status_pagamento not in ['revogado_manual', 'expirado'] %}
+                            <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" method="post" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-warning">Revogar</button>
+                            </form>
+                            {% endif %}
+                            
+                            {% if assinatura.status_usuario == 'A' %}
+                            <form action="{{ url_for('desativar_usuario', chat_id_usuario_para_desativar=assinatura.chat_id) }}" method="post" style="display:inline;" onsubmit="return confirm('Isso marcará o usuário como INATIVO e ele não aparecerá mais na lista principal. Seus dados e histórico de assinaturas serão mantidos. Deseja continuar?');">
+                                <button type="submit" class="btn btn-sm btn-dark">Desativar Usuário</button>
+                            </form>
+                            {% endif %}
+                            </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center">Nenhum registro de assinatura encontrado.</td>
+                </tr>
+                {% endif %}    
+            </tbody>
+        </table>
     </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
