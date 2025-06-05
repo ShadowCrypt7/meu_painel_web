@@ -359,20 +359,71 @@ def api_bot_verificar_status():
 def historico_assinaturas():
     if 'usuario_admin' not in session:
         return redirect(url_for('login'))
-
+    
     conn = get_db_connection()
-    todas_assinaturas_db = conn.execute('''
+
+    # Parâmetros de busca/filtro da URL
+    search_username = request.args.get('search_username', '').strip()
+    search_chat_id = request.args.get('search_chat_id', '').strip()
+    filter_plano_id = request.args.get('filter_plano_id', '') # ID do plano
+    filter_status = request.args.get('filter_status', '')     # Status da assinatura
+
+    # Buscar todos os planos para popular o dropdown de filtro
+    planos_para_filtro_db = conn.execute("SELECT id_plano, nome_exibicao FROM planos ORDER BY nome_exibicao").fetchall()
+    
+    # Definir os status possíveis para o dropdown de filtro de status
+    # Você pode expandir esta lista se tiver mais status
+    status_assinatura_possiveis = [
+        "pendente_comprovante", 
+        "aprovado_manual", 
+        "revogado_manual", 
+        "pago_gateway", # Futuro
+        "expirado"      # Futuro
+    ]
+
+    # Construção da query SQL dinâmica
+    query_base = '''
         SELECT a.id_assinatura, u.chat_id, u.username, u.first_name, 
                p.nome_exibicao as nome_plano, a.id_plano_assinado, a.status_pagamento, 
-               a.data_compra, a.data_liberacao, u.status_usuario -- Incluindo status do usuário para info
+               a.data_compra, a.data_liberacao, u.status_usuario
         FROM assinaturas a
         JOIN usuarios u ON u.chat_id = a.chat_id_usuario
         JOIN planos p ON p.id_plano = a.id_plano_assinado
-        ORDER BY a.data_compra DESC
-    ''').fetchall()
-    conn.close()
+    '''
+    condicoes = []
+    parametros = []
 
-    # Processar as datas para o fuso horário local
+    if search_username:
+        # Busca por username ou first_name se username for nulo/vazio
+        condicoes.append("(u.username LIKE ? OR (u.username IS NULL AND u.first_name LIKE ?))")
+        parametros.extend([f'%{search_username}%', f'%{search_username}%'])
+    
+    if search_chat_id:
+        try:
+            # Garante que o chat_id seja um inteiro para a busca
+            chat_id_int = int(search_chat_id)
+            condicoes.append("u.chat_id = ?")
+            parametros.append(chat_id_int)
+        except ValueError:
+            flash("Chat ID inválido para busca. Deve ser um número.", "warning")
+            # Ignora este filtro se não for um número válido
+
+    if filter_plano_id:
+        condicoes.append("a.id_plano_assinado = ?")
+        parametros.append(filter_plano_id)
+    
+    if filter_status:
+        condicoes.append("a.status_pagamento = ?")
+        parametros.append(filter_status)
+
+    if condicoes:
+        query_base += " WHERE " + " AND ".join(condicoes)
+    
+    query_base += " ORDER BY a.data_compra DESC"
+    
+    todas_assinaturas_db = conn.execute(query_base, tuple(parametros)).fetchall()
+    conn.close()
+    
     assinaturas_para_template = []
     for row_original in todas_assinaturas_db:
         row_modificada = dict(row_original)
@@ -380,8 +431,18 @@ def historico_assinaturas():
         if row_modificada.get('data_liberacao'):
             row_modificada['data_liberacao'] = formatar_data_local(row_modificada['data_liberacao'])
         assinaturas_para_template.append(row_modificada)
-
-    return render_template('historico_assinaturas.html', assinaturas=assinaturas_para_template)
+        
+    return render_template(
+        'historico_assinaturas.html', 
+        assinaturas=assinaturas_para_template,
+        planos_filtro=planos_para_filtro_db,          # <-- Novo: para o dropdown de planos
+        status_filtro_lista=status_assinatura_possiveis, # <-- Novo: para o dropdown de status
+        # Passando os valores atuais dos filtros para preencher o formulário
+        current_search_username=search_username,
+        current_search_chat_id=search_chat_id,
+        current_filter_plano_id=filter_plano_id,
+        current_filter_status=filter_status
+    )
 
 
 @app.route('/admin/reativar_usuario/<int:chat_id_usuario_para_reativar>', methods=['POST'])

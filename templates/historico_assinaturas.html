@@ -27,6 +27,46 @@
           {% endif %}
         {% endwith %}
 
+        <form method="GET" action="{{ url_for('historico_assinaturas') }}" class="mb-4 p-3 border rounded bg-white">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="search_username" class="form-label">Buscar por Username/Nome:</label>
+                    <input type="text" class="form-control" id="search_username" name="search_username" value="{{ current_search_username or '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="search_chat_id" class="form-label">Buscar por Chat ID:</label>
+                    <input type="text" class="form-control" id="search_chat_id" name="search_chat_id" value="{{ current_search_chat_id or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="filter_plano_id" class="form-label">Filtrar por Plano:</label>
+                    <select class="form-select" id="filter_plano_id" name="filter_plano_id">
+                        <option value="">Todos os Planos</option>
+                        {% for plano_f in planos_filtro %}
+                        <option value="{{ plano_f.id_plano }}" {% if plano_f.id_plano == current_filter_plano_id %}selected{% endif %}>
+                            {{ plano_f.nome_exibicao }} ({{ plano_f.id_plano }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filter_status" class="form-label">Filtrar por Status:</label>
+                    <select class="form-select" id="filter_status" name="filter_status">
+                        <option value="">Todos os Status</option>
+                        {% for status_opt in status_filtro_lista %}
+                        <option value="{{ status_opt }}" {% if status_opt == current_filter_status %}selected{% endif %}>
+                            {{ status_opt.replace('_', ' ')|title }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Buscar / Filtrar</button>
+                    <a href="{{ url_for('historico_assinaturas') }}" class="btn btn-outline-secondary w-100 mt-1">Limpar Filtros</a>
+                </div>
+            </div>
+        </form>
+        
+
         <table class="table table-bordered table-striped table-hover">
             <thead class="table-dark">
                 <tr>
