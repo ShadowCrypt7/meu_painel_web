@@ -14,7 +14,7 @@
             <a class="nav-link {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}">Painel Principal</a>
             <a class="nav-link {% if request.endpoint == 'historico_assinaturas' %}active{% endif %}" href="{{ url_for('historico_assinaturas') }}">Histórico Completo</a>
             <a class="nav-link {% if request.endpoint == 'admin_planos' %}active{% endif %}" href="{{ url_for('admin_planos') }}">Gerenciar Planos</a>
-        </nav>
+            </nav>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -40,7 +40,7 @@
                     <th>Descrição</th>
                     <th>Link Conteúdo</th>
                     <th>Status</th>
-                    <th>Ações</th>
+                    <th>Duração</th> <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -59,6 +59,11 @@
                                 <span class="badge bg-secondary">Inativo</span>
                             {% endif %}
                         </td>
+                        <td>{% if plano.duracao_dias and plano.duracao_dias > 0 %}
+                                {{ plano.duracao_dias }} dia(s)
+                            {% else %}
+                                <span class="badge bg-info text-dark">Vitalício</span> {% endif %}
+                        </td>
                         <td>
                             <a href="{{ url_for('admin_editar_plano', id_plano_para_editar=plano.id_plano) }}" class="btn btn-sm btn-primary mb-1">Editar</a>
                             
@@ -71,7 +76,7 @@
                             </form>
 
                             <form action="{{ url_for('admin_excluir_plano', id_plano_para_excluir=plano.id_plano) }}" method="post" style="display:inline-block;" 
-                                onsubmit="return confirm('TEM CERTEZA ABSOLUTA que deseja excluir este plano PERMANENTEMENTE? Esta ação não pode ser desfeita e só funcionará se não houver nenhuma assinatura vinculada a este plano.');">
+                                  onsubmit="return confirm('TEM CERTEZA ABSOLUTA que deseja excluir este plano PERMANENTEMENTE? Esta ação não pode ser desfeita e só funcionará se não houver nenhuma assinatura vinculada a este plano.');">
                                 <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
                             </form>
                         </td>
@@ -79,7 +84,7 @@
                     {% endfor %}
                 {% else %}
                 <tr>
-                    <td colspan="7" class="text-center">Nenhum plano cadastrado.</td>
+                    <td colspan="8" class="text-center">Nenhum plano cadastrado.</td>
                 </tr>
                 {% endif %}
             </tbody>

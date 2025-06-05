@@ -14,7 +14,7 @@
             <a class="nav-link" href="{{ url_for('home') }}">Painel Principal</a>
             <a class="nav-link" href="{{ url_for('historico_assinaturas') }}">Histórico Completo</a>
             <a class="nav-link active" href="{{ url_for('admin_planos') }}">Gerenciar Planos</a>
-        </nav>
+            </nav>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -50,14 +50,46 @@
                 <input type="url" class="form-control" id="link_conteudo" name="link_conteudo" value="{{ plano.link_conteudo if plano else '' }}" required>
             </div>
             <div class="mb-3 form-check">
-                <input type="checkbox" class="form-check-input" id="ativo" name="ativo" {{ "checked" if plano and plano.ativo or not plano else "" }}>
+                <input type="checkbox" class="form-check-input" id="ativo" name="ativo" {{ "checked" if (plano and plano.ativo) or (not plano and acao == 'Adicionar') else "" }}>
                 <label class="form-check-label" for="ativo">Plano Ativo (visível para o bot)</label>
             </div>
 
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="tem_expiracao" name="tem_expiracao" 
+                       {% if plano and plano.duracao_dias and plano.duracao_dias > 0 %}checked{% endif %}
+                       onchange="toggleDuracaoDias(this.checked)">
+                <label class="form-check-label" for="tem_expiracao">Este plano tem data de expiração?</label>
+            </div>
+            
+            <div class="mb-3" id="campo_duracao_dias" style="display: {% if plano and plano.duracao_dias and plano.duracao_dias > 0 %}block{% else %}none{% endif %};">
+                <label for="duracao_dias" class="form-label">Duração do plano em dias (ex: 30 para mensal):</label>
+                <input type="number" class="form-control" id="duracao_dias" name="duracao_dias" 
+                       value="{{ plano.duracao_dias if plano and plano.duracao_dias else '' }}" min="1">
+            </div>
             <button type="submit" class="btn btn-primary">{{ acao }} Plano</button>
             <a href="{{ url_for('admin_planos') }}" class="btn btn-secondary">Cancelar</a>
         </form>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    function toggleDuracaoDias(isChecked) {
+        var campoDuracao = document.getElementById('campo_duracao_dias');
+        var inputDuracao = document.getElementById('duracao_dias');
+        if (campoDuracao) { // Verifica se o elemento existe
+            campoDuracao.style.display = isChecked ? 'block' : 'none';
+            if (!isChecked && inputDuracao) { // Verifica se o input existe
+                inputDuracao.value = ''; // Limpa o valor se desmarcado
+            }
+        }
+    }
+    // Garante que o campo seja exibido corretamente no carregamento da página (para edição)
+    // e que a função esteja disponível globalmente ou no escopo correto.
+    document.addEventListener('DOMContentLoaded', function() {
+        var checkbox = document.getElementById('tem_expiracao');
+        if (checkbox) { // Verifica se o checkbox existe
+            toggleDuracaoDias(checkbox.checked);
+        }
+    });
+    </script>
 </body>
 </html>

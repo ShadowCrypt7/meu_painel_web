@@ -48,10 +48,12 @@ def create_tables():
                 preco REAL NOT NULL,
                 descricao TEXT,
                 link_conteudo TEXT NOT NULL,
-                ativo BOOLEAN DEFAULT TRUE 
+                ativo BOOLEAN DEFAULT TRUE,
+                duracao_dias INTEGER DEFAULT NULL -- <<< NOVA COLUNA: NULL para vitalício, >0 para dias
             )
         ''')
-        print("DEBUG: Tabela planos verificada/criada.") 
+        print("DEBUG: Tabela planos (com duracao_dias) verificada/criada.")
+    
 
         # Tabela de Assinaturas/Vendas
         cursor.execute('''
@@ -131,10 +133,33 @@ def try_add_ativo_column_to_planos():
             conn.close()
             print("DEBUG: try_add_ativo_column_to_planos - Conexão fechada.")
 
+def try_add_duracao_dias_to_planos():
+    """Tenta adicionar a coluna 'duracao_dias' à tabela 'planos' se ela não existir."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(planos);")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'duracao_dias' not in columns:
+            print("DEBUG: Coluna 'duracao_dias' não encontrada na tabela 'planos'. Tentando adicionar...")
+            cursor.execute("ALTER TABLE planos ADD COLUMN duracao_dias INTEGER DEFAULT NULL;")
+            conn.commit()
+            print("DEBUG: Coluna 'duracao_dias' (INTEGER DEFAULT NULL) adicionada à tabela 'planos'.")
+        else:
+            print("DEBUG: Coluna 'duracao_dias' já existe na tabela 'planos'.")
+    except sqlite3.Error as e:
+        print(f"ERRO em try_add_duracao_dias_to_planos: {e}")
+    finally:
+        if conn:
+            conn.close()
+            print("DEBUG: try_add_duracao_dias_to_planos - Conexão fechada.")            
+
 if __name__ == '__main__':
     print("DEBUG: Bloco if __name__ == '__main__' em database.py alcançado.")
     create_tables() # Garante que as tabelas base existem (aqui 'planos' já tem 'ativo' na definição)
     try_add_status_usuario_column()
     try_add_ativo_column_to_planos() 
+    try_add_duracao_dias_to_planos()
     print("DEBUG: Funções de setup de database.py concluídas a partir do bloco __main__.")
     

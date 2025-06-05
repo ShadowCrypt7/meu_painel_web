@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo 
 
 # Importar funções do nosso módulo de banco de dados
-from database import get_db_connection, create_tables, try_add_ativo_column_to_planos, try_add_status_usuario_column
+from database import get_db_connection, create_tables, try_add_ativo_column_to_planos, try_add_status_usuario_column, try_add_duracao_dias_to_planos
 
 
 FUSO_HORARIO_LOCAL = ZoneInfo("America/Sao_Paulo")
@@ -16,6 +16,8 @@ FUSO_HORARIO_LOCAL = ZoneInfo("America/Sao_Paulo")
 load_dotenv()
 try_add_status_usuario_column()
 try_add_ativo_column_to_planos()
+try_add_duracao_dias_to_planos()
+
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY_PAINEL")
 
@@ -564,7 +566,7 @@ def admin_planos():
         return redirect(url_for('login'))
 
     conn = get_db_connection()
-    planos_db = conn.execute('SELECT id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo FROM planos ORDER BY nome_exibicao').fetchall()
+    planos_db = conn.execute('SELECT id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo, duracao_dias FROM planos ORDER BY nome_exibicao').fetchall()
     conn.close()
 
     # Criaremos um novo template para esta página
@@ -591,6 +593,23 @@ def admin_adicionar_plano():
         # O checkbox 'ativo' envia 'on' se marcado, ou não envia nada se desmarcado
         ativo = 'ativo' in request.form 
 
+        tem_expiracao = 'tem_expiracao' in request.form
+        duracao_dias_str = request.form.get('duracao_dias', '').strip()
+        duracao_dias = None
+
+        if tem_expiracao:
+            if not duracao_dias_str:
+                flash('Duração em dias é obrigatória se o plano tem expiração.', 'danger')
+                return render_template('admin_plano_form.html', acao="Adicionar", plano=request.form)
+            try:
+                duracao_dias = int(duracao_dias_str)
+                if duracao_dias <= 0:
+                    raise ValueError("Duração deve ser um número positivo.")
+            except ValueError:
+                flash('Duração em dias inválida. Deve ser um número inteiro positivo.', 'danger')
+                return render_template('admin_plano_form.html', acao="Adicionar", plano=request.form)
+        # Se não tem expiração, duracao_dias continua None (que será salvo como NULL no DB)
+
         if not all([id_plano, nome_exibicao, preco, link_conteudo]): # Descrição é opcional
             flash('ID do Plano, Nome de Exibição, Preço e Link do Conteúdo são obrigatórios.', 'danger')
             return render_template('admin_plano_form.html', acao="Adicionar", plano=request.form)
@@ -598,9 +617,9 @@ def admin_adicionar_plano():
         conn = get_db_connection()
         try:
             conn.execute('''
-                INSERT INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo))
+            INSERT INTO planos (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo, duracao_dias)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (id_plano, nome_exibicao, preco, descricao, link_conteudo, ativo, duracao_dias))
             conn.commit()
             flash(f'Plano "{nome_exibicao}" adicionado com sucesso!', 'success')
             return redirect(url_for('admin_planos'))
@@ -646,6 +665,26 @@ def admin_editar_plano(id_plano_para_editar):
         link_conteudo = request.form['link_conteudo']
         ativo = 'ativo' in request.form # True se o checkbox 'ativo' estiver marcado
 
+        tem_expiracao = 'tem_expiracao' in request.form
+        duracao_dias_str = request.form.get('duracao_dias', '').strip()
+        duracao_dias = None # Será NULL no DB se não for definido
+
+        if tem_expiracao:
+            if not duracao_dias_str:
+                flash('Duração em dias é obrigatória se o plano tem expiração.', 'danger')
+                plano_atual_para_form['tem_expiracao'] = True # Para manter o checkbox marcado
+                return render_template('admin_plano_form.html', acao="Editar", plano=plano_atual_para_form)
+            try:
+                duracao_dias = int(duracao_dias_str)
+                if duracao_dias <= 0:
+                    raise ValueError("Duração deve ser um número positivo.")
+            except ValueError:
+                flash('Duração em dias inválida. Deve ser um número inteiro positivo.', 'danger')
+                plano_atual_para_form['tem_expiracao'] = True
+                plano_atual_para_form['duracao_dias'] = duracao_dias_str # Mantém valor inválido para correção
+                return render_template('admin_plano_form.html', acao="Editar", plano=plano_atual_para_form)
+            
+
         if not all([nome_exibicao, preco, link_conteudo]): # ID do plano não é editável, descrição é opcional
             flash('Nome de Exibição, Preço e Link do Conteúdo são obrigatórios.', 'danger')
             plano_atual_para_form = {
@@ -660,10 +699,10 @@ def admin_editar_plano(id_plano_para_editar):
 
         try:
             conn.execute('''
-                UPDATE planos 
-                SET nome_exibicao = ?, preco = ?, descricao = ?, link_conteudo = ?, ativo = ?
-                WHERE id_plano = ?
-            ''', (nome_exibicao, preco, descricao, link_conteudo, ativo, id_plano_para_editar))
+            UPDATE planos 
+            SET nome_exibicao = ?, preco = ?, descricao = ?, link_conteudo = ?, ativo = ?, duracao_dias = ?
+            WHERE id_plano = ?
+        ''', (nome_exibicao, preco, descricao, link_conteudo, ativo, duracao_dias, id_plano_para_editar))
             conn.commit()
             flash(f'Plano "{nome_exibicao}" atualizado com sucesso!', 'success')
             conn.close()
