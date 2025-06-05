@@ -65,11 +65,12 @@ def create_tables():
                 status_pagamento TEXT NOT NULL, 
                 id_transacao_gateway TEXT, 
                 data_liberacao DATETIME,
+                data_fim DATETIME DEFAULT NULL, -- <<< NOVA COLUNA: NULL para vitalício ou indefinido
                 FOREIGN KEY (chat_id_usuario) REFERENCES usuarios (chat_id),
                 FOREIGN KEY (id_plano_assinado) REFERENCES planos (id_plano)
             )
         ''')
-        print("DEBUG: Tabela assinaturas verificada/criada.")
+        print("DEBUG: Tabela assinaturas (com data_fim) verificada/criada.")
         
         conn.commit()
         print("DEBUG: Commit realizado.") 
@@ -153,7 +154,29 @@ def try_add_duracao_dias_to_planos():
     finally:
         if conn:
             conn.close()
-            print("DEBUG: try_add_duracao_dias_to_planos - Conexão fechada.")            
+            print("DEBUG: try_add_duracao_dias_to_planos - Conexão fechada.")       
+
+def try_add_data_fim_to_assinaturas():
+    """Tenta adicionar a coluna 'data_fim' à tabela 'assinaturas' se ela não existir."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(assinaturas);")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'data_fim' not in columns:
+            print("DEBUG: Coluna 'data_fim' não encontrada na tabela 'assinaturas'. Tentando adicionar...")
+            cursor.execute("ALTER TABLE assinaturas ADD COLUMN data_fim DATETIME DEFAULT NULL;")
+            conn.commit()
+            print("DEBUG: Coluna 'data_fim' (DATETIME DEFAULT NULL) adicionada à tabela 'assinaturas'.")
+        else:
+            print("DEBUG: Coluna 'data_fim' já existe na tabela 'assinaturas'.")
+    except sqlite3.Error as e:
+        print(f"ERRO em try_add_data_fim_to_assinaturas: {e}")
+    finally:
+        if conn:
+            conn.close()
+                             
 
 if __name__ == '__main__':
     print("DEBUG: Bloco if __name__ == '__main__' em database.py alcançado.")

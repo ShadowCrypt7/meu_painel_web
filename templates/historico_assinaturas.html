@@ -14,6 +14,7 @@
             <a class="nav-link {% if request.endpoint == 'home' %}active{% endif %}" href="{{ url_for('home') }}">Painel Principal</a>
             <a class="nav-link {% if request.endpoint == 'historico_assinaturas' %}active{% endif %}" href="{{ url_for('historico_assinaturas') }}">Histórico Completo</a>
             <a class="nav-link {% if request.endpoint == 'admin_planos' %}active{% endif %}" href="{{ url_for('admin_planos') }}">Gerenciar Planos</a>
+             <a href="{{ url_for('logout') }}" class="btn btn-danger ms-auto">Sair</a>
         </nav>
         
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -49,8 +50,7 @@
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label for="filter_status" class="form-label">Filtrar por Status:</label>
-                    <select class="form-select" id="filter_status" name="filter_status">
+                    <label for="filter_status" class="form-label">Filtrar por Status Assinatura:</label> <select class="form-select" id="filter_status" name="filter_status">
                         <option value="">Todos os Status</option>
                         {% for status_opt in status_filtro_lista %}
                         <option value="{{ status_opt }}" {% if status_opt == current_filter_status %}selected{% endif %}>
@@ -66,17 +66,16 @@
             </div>
         </form>
         
-
         <table class="table table-bordered table-striped table-hover">
             <thead class="table-dark">
                 <tr>
                     <th>ID Ass.</th>
-                    <th>Username ( User ID)</th>
-                    <th>Plano</th>
+                    <th>Username (User ID)</th> <th>Plano</th>
                     <th>Status Assinatura</th>
                     <th>Data Compra</th>
                     <th>Data Liberação</th>
-                    <th>Status Usuário</th> <th>Ações</th>
+                    <th>Data Expiração</th> <th>Status Usuário</th> 
+                    <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -89,7 +88,7 @@
                         <td>{{ assinatura.status_pagamento }}</td>
                         <td>{{ assinatura.data_compra }}</td>
                         <td>{{ assinatura.data_liberacao or 'N/A' }}</td>
-                        <td>
+                        <td>{{ assinatura.data_fim_formatada }}</td> <td>
                             {% if assinatura.status_usuario == 'A' %}
                                 <span class="badge bg-success">Ativo</span>
                             {% elif assinatura.status_usuario == 'I' %}
@@ -101,41 +100,41 @@
                         <td>
                             {% if assinatura.status_pagamento == 'pendente_comprovante' %}
                             <form action="{{ url_for('aprovar_assinatura', id_assinatura=assinatura.id_assinatura) }}" 
-                                method="post" 
-                                style="display:inline-block; margin-bottom: 5px;">
+                                  method="post" 
+                                  style="display:inline-block; margin-bottom: 5px;">
                                     <button type="submit" class="btn btn-sm btn-success">Aprovar</button>
                             </form>
                             {% endif %}
 
                             {% if assinatura.status_pagamento not in ['revogado_manual', 'expirado'] %}
-                            <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" \
-                                method="post" 
-                                style="display:inline-block; margin-bottom: 5px;">
+                            <form action="{{ url_for('revogar_assinatura', id_assinatura=assinatura.id_assinatura) }}" 
+                                  method="post" 
+                                  style="display:inline-block; margin-bottom: 5px;">
                                     <button type="submit" class="btn btn-sm btn-warning">Revogar</button>
                             </form>
                             {% endif %}
                             
                             {% if assinatura.status_usuario == 'A' %}
                             <form action="{{ url_for('desativar_usuario', chat_id_usuario_para_desativar=assinatura.chat_id) }}" 
-                                method="post" 
-                                style="display:inline-block; margin-bottom: 5px;" 
-                                onsubmit="return confirm('Isso marcará o usuário como INATIVO. Ele não aparecerá mais na lista principal do painel, mas continuará neste histórico. Deseja continuar?');">
+                                  method="post" 
+                                  style="display:inline-block; margin-bottom: 5px;" 
+                                  onsubmit="return confirm('Isso marcará o usuário como INATIVO. Ele não aparecerá mais na lista principal do painel, mas continuará neste histórico. Deseja continuar?');">
                                 <button type="submit" class="btn btn-sm btn-dark">Desativar Usuário</button>
                             </form>
                             {% endif %}
 
                             {% if assinatura.status_usuario == 'I' %}
                             <form action="{{ url_for('reativar_usuario', chat_id_usuario_para_reativar=assinatura.chat_id) }}" 
-                                method="post"
-                                style="display:inline-block; margin-bottom: 5px;">
+                                  method="post"
+                                  style="display:inline-block; margin-bottom: 5px;">
                                 <button type="submit" class="btn btn-sm btn-info">Reativar Usuário</button>
                             </form>
                             {% endif %}
 
                             <form action="{{ url_for('admin_excluir_usuario_permanente', chat_id_para_excluir=assinatura.chat_id) }}" 
-                                method="post" 
-                                style="display:inline-block; margin-top: 5px;" 
-                                onsubmit="return confirm('ATENÇÃO MÁXIMA!\n\nVocê está prestes a excluir PERMANENTEMENTE este usuário ({{ assinatura.username or assinatura.first_name }} - ID: {{ assinatura.chat_id }}) e TODAS as suas assinaturas associadas.\n\nESSA AÇÃO NÃO PODE SER DESFEITA.\n\nDeseja realmente continuar?');">
+                                  method="post" 
+                                  style="display:inline-block; margin-top: 5px;" 
+                                  onsubmit="return confirm('ATENÇÃO MÁXIMA!\n\nVocê está prestes a excluir PERMANENTEMENTE este usuário ({{ assinatura.username or assinatura.first_name }} - ID: {{ assinatura.chat_id }}) e TODAS as suas assinaturas associadas.\n\nESSA AÇÃO NÃO PODE SER DESFEITA.\n\nDeseja realmente continuar?');">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Excluir Usuário</button>
                             </form>
                         </td>
@@ -143,7 +142,7 @@
                     {% endfor %}
                 {% else %}
                 <tr>
-                    <td colspan="8" class="text-center">Nenhum registro de assinatura encontrado.</td>
+                    <td colspan="9" class="text-center">Nenhum registro de assinatura encontrado.</td>
                 </tr>
                 {% endif %}
             </tbody>
