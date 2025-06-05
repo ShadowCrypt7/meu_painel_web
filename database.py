@@ -65,12 +65,13 @@ def create_tables():
                 status_pagamento TEXT NOT NULL, 
                 id_transacao_gateway TEXT, 
                 data_liberacao DATETIME,
-                data_fim DATETIME DEFAULT NULL, -- <<< NOVA COLUNA: NULL para vitalício ou indefinido
+                data_fim DATETIME DEFAULT NULL,
+                notificacao_expiracao_tipo_enviada TEXT DEFAULT NULL, -- <<< NOVA COLUNA
                 FOREIGN KEY (chat_id_usuario) REFERENCES usuarios (chat_id),
                 FOREIGN KEY (id_plano_assinado) REFERENCES planos (id_plano)
             )
         ''')
-        print("DEBUG: Tabela assinaturas (com data_fim) verificada/criada.")
+        print("DEBUG: Tabela assinaturas (com notificacao_expiracao_tipo_enviada) verificada/criada.")
         
         conn.commit()
         print("DEBUG: Commit realizado.") 
@@ -176,7 +177,27 @@ def try_add_data_fim_to_assinaturas():
     finally:
         if conn:
             conn.close()
-                             
+
+def try_add_notificacao_exp_tipo_to_assinaturas():
+    """Tenta adicionar a coluna 'notificacao_expiracao_tipo_enviada' à tabela 'assinaturas'."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(assinaturas);")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'notificacao_expiracao_tipo_enviada' not in columns:
+            print("DEBUG: Coluna 'notificacao_expiracao_tipo_enviada' não encontrada. Tentando adicionar...")
+            cursor.execute("ALTER TABLE assinaturas ADD COLUMN notificacao_expiracao_tipo_enviada TEXT DEFAULT NULL;")
+            conn.commit()
+            print("DEBUG: Coluna 'notificacao_expiracao_tipo_enviada' adicionada.")
+        else:
+            print("DEBUG: Coluna 'notificacao_expiracao_tipo_enviada' já existe.")
+    except sqlite3.Error as e:
+        print(f"ERRO em try_add_notificacao_exp_tipo_to_assinaturas: {e}")
+    finally:
+        if conn:
+            conn.close()
 
 if __name__ == '__main__':
     print("DEBUG: Bloco if __name__ == '__main__' em database.py alcançado.")

@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo 
 
 
-from database import get_db_connection, create_tables, try_add_ativo_column_to_planos, try_add_status_usuario_column, try_add_duracao_dias_to_planos, try_add_data_fim_to_assinaturas
+from database import get_db_connection, create_tables, try_add_ativo_column_to_planos, try_add_status_usuario_column, try_add_duracao_dias_to_planos, try_add_data_fim_to_assinaturas, try_add_notificacao_exp_tipo_to_assinaturas
 
 # Defina o seu fuso horário local
 FUSO_HORARIO_LOCAL = ZoneInfo("America/Sao_Paulo")
@@ -17,7 +17,8 @@ load_dotenv()
 try_add_status_usuario_column()
 try_add_ativo_column_to_planos()
 try_add_duracao_dias_to_planos()
-try_add_data_fim_to_assinaturas() 
+try_add_data_fim_to_assinaturas()
+try_add_notificacao_exp_tipo_to_assinaturas() 
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY_PAINEL")
@@ -715,6 +716,113 @@ def admin_excluir_usuario_permanente(chat_id_para_excluir):
             
     return redirect(url_for('historico_assinaturas'))
 
+@app.route('/api/bot/assinaturas_expirando', methods=['GET'])
+def api_bot_assinaturas_expirando():
+    # Autenticação da API (importante!)
+    chave_recebida = request.args.get('chave_api_bot')
+    if chave_recebida != CHAVE_API_BOT: # CHAVE_API_BOT é o os.getenv("CHAVE_PAINEL")
+        return jsonify({"status": "erro", "mensagem": "Chave de API inválida"}), 403
+
+    try:
+        dias_ate_expirar_str = request.args.get('dias_ate_expirar', '7') # Padrão para 7 dias
+        tipo_janela_notificacao = request.args.get('tipo_janela_notificacao') # Ex: "exp_7d", "exp_3d"
+
+        if not tipo_janela_notificacao:
+            return jsonify({"status": "erro", "mensagem": "Parâmetro 'tipo_janela_notificacao' é obrigatório."}), 400
+        
+        dias_ate_expirar = int(dias_ate_expirar_str)
+        if dias_ate_expirar <= 0:
+            return jsonify({"status": "erro", "mensagem": "'dias_ate_expirar' deve ser positivo."}), 400
+
+    except ValueError:
+        return jsonify({"status": "erro", "mensagem": "'dias_ate_expirar' deve ser um número inteiro."}), 400
+
+    conn = get_db_connection()
+    try:
+        # datetime('now', '+X days') já retorna no formato YYYY-MM-DD HH:MM:SS que o SQLite compara corretamente com data_fim
+        data_limite_superior = f"datetime('now', '+{dias_ate_expirar} days')"
+        
+        # A data_fim deve ser maior ou igual a hoje E menor ou igual à data limite superior.
+        # E o tipo de notificação específico não deve ter sido enviado ainda.
+        query = f"""
+            SELECT 
+                a.id_assinatura, 
+                a.chat_id_usuario, 
+                p.nome_exibicao as nome_plano, 
+                a.data_fim,
+                u.first_name,
+                u.username
+            FROM assinaturas a
+            JOIN planos p ON a.id_plano_assinado = p.id_plano
+            JOIN usuarios u ON a.chat_id_usuario = u.chat_id
+            WHERE a.status_pagamento IN ('aprovado_manual', 'pago_gateway')
+              AND u.status_usuario = 'A'
+              AND a.data_fim IS NOT NULL
+              AND a.data_fim >= datetime('now') 
+              AND a.data_fim <= {data_limite_superior}
+              AND (a.notificacao_expiracao_tipo_enviada IS NULL OR a.notificacao_expiracao_tipo_enviada != ?)
+        """
+        
+        assinaturas_expirando_db = conn.execute(query, (tipo_janela_notificacao,)).fetchall()
+        
+        assinaturas_formatadas = []
+        for row in assinaturas_expirando_db:
+            assinaturas_formatadas.append({
+                "id_assinatura": row["id_assinatura"],
+                "chat_id_usuario": row["chat_id_usuario"],
+                "nome_plano": row["nome_plano"],
+                "data_fim_formatada": formatar_data_local(row["data_fim"]) if row["data_fim"] else "N/A",
+                "first_name": row["first_name"],
+                "username": row["username"]
+            })
+        conn.close()
+        return jsonify({"status": "sucesso", "assinaturas": assinaturas_formatadas}), 200
+        
+    except sqlite3.Error as e_sql:
+        if conn: conn.close()
+        print(f"Erro SQL em /api/bot/assinaturas_expirando: {e_sql}")
+        return jsonify({"status": "erro", "mensagem": f"Erro de banco de dados: {e_sql}"}), 500
+    except Exception as e_geral:
+        if conn: conn.close()
+        print(f"Erro geral em /api/bot/assinaturas_expirando: {e_geral}")
+        return jsonify({"status": "erro", "mensagem": f"Erro interno do servidor: {e_geral}"}), 500
+
+@app.route('/api/bot/marcar_notificacao_expiracao', methods=['POST'])
+def api_bot_marcar_notificacao_expiracao():
+    # Autenticação da API
+    # (Você pode usar a mesma chave CHAVE_API_BOT)
+    data = request.get_json()
+    if not data or data.get("chave_api_bot") != CHAVE_API_BOT:
+        return jsonify({"status": "erro", "mensagem": "Chave de API inválida ou dados não enviados"}), 403
+
+    id_assinatura = data.get('id_assinatura')
+    tipo_notificacao_enviada = data.get('tipo_notificacao') # Ex: "exp_7d"
+
+    if not id_assinatura or not tipo_notificacao_enviada:
+        return jsonify({"status": "erro", "mensagem": "id_assinatura e tipo_notificacao são obrigatórios"}), 400
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute('''
+            UPDATE assinaturas 
+            SET notificacao_expiracao_tipo_enviada = ?
+            WHERE id_assinatura = ?
+        ''', (tipo_notificacao_enviada, id_assinatura))
+        conn.commit()
+
+        if cursor.rowcount > 0:
+            conn.close()
+            return jsonify({"status": "sucesso", "mensagem": f"Assinatura {id_assinatura} marcada como notificada para {tipo_notificacao_enviada}."}), 200
+        else:
+            conn.close()
+            return jsonify({"status": "erro", "mensagem": f"Assinatura {id_assinatura} não encontrada ou não necessitou atualização."}), 404
+            
+    except sqlite3.Error as e_sql:
+        if conn: conn.close()
+        return jsonify({"status": "erro", "mensagem": f"Erro de banco de dados: {e_sql}"}), 500
+    except Exception as e_geral:
+        if conn: conn.close()
+        return jsonify({"status": "erro", "mensagem": f"Erro interno do servidor: {e_geral}"}), 500
 
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5001)) 
