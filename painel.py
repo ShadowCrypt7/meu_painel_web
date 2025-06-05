@@ -10,8 +10,7 @@ from zoneinfo import ZoneInfo
 # Importar funções do nosso módulo de banco de dados
 from database import get_db_connection, create_tables, try_add_ativo_column_to_planos, try_add_status_usuario_column
 
-# Defina o seu fuso horário local
-# Para Goiás (que geralmente segue o horário de Brasília):
+
 FUSO_HORARIO_LOCAL = ZoneInfo("America/Sao_Paulo")
 
 load_dotenv()
@@ -22,15 +21,14 @@ app.secret_key = os.getenv("SECRET_KEY_PAINEL")
 
 USUARIO_PAINEL = os.getenv("USUARIO_PAINEL")
 SENHA_PAINEL = os.getenv("SENHA_PAINEL")
-CHAVE_API_BOT = os.getenv("CHAVE_PAINEL") # Renomeando para clareza, essa é a chave que o BOT usa
+CHAVE_API_BOT = os.getenv("CHAVE_PAINEL")
 URL_API_NOTIFICACAO_BOT = os.getenv("URL_API_NOTIFICACAO_BOT")
-CHAVE_SECRETA_PARA_BOT = os.getenv("CHAVE_SECRETA_PARA_BOT") # Esta é a CHAVE_PAINEL
+CHAVE_SECRETA_PARA_BOT = os.getenv("CHAVE_SECRETA_PARA_BOT")
 
 # Garante que as tabelas sejam criadas ao iniciar o app do painel, se não existirem.
-# Isso é seguro por causa do "IF NOT EXISTS" nas queries de criação.
+
 create_tables()
 
-# Em painel.py, pode ser antes das suas rotas
 
 def formatar_data_local(dt_string_do_db):
     if not dt_string_do_db:
@@ -82,12 +80,49 @@ def home():
         return redirect(url_for('login'))
     
     conn = get_db_connection()
+    
+    # 1. Total de usuários ativos
+    cursor_usuarios_ativos = conn.execute("SELECT COUNT(*) as count FROM usuarios WHERE status_usuario = 'A'")
+    total_usuarios_ativos = cursor_usuarios_ativos.fetchone()['count']
+
+    # 2. Total de assinaturas ativas (para usuários ativos)
+    # Considerando 'aprovado_manual' como ativa. Adicione 'pago_gateway' quando implementar.
+    cursor_assinaturas_ativas = conn.execute("""
+        SELECT COUNT(a.id_assinatura) as count 
+        FROM assinaturas a
+        JOIN usuarios u ON a.chat_id_usuario = u.chat_id
+        WHERE u.status_usuario = 'A' AND (a.status_pagamento = 'aprovado_manual' /* OR a.status_pagamento = 'pago_gateway' */)
+    """)
+    total_assinaturas_ativas = cursor_assinaturas_ativas.fetchone()['count']
+
+    # 3. Número de novas assinaturas (registros criados) nos últimos 7 dias
+    # SQLite usa CURRENT_TIMESTAMP que é UTC. date('now', '-7 days') também é UTC.
+    # Isso conta qualquer nova entrada na tabela 'assinaturas' nesse período.
+    cursor_novas_assinaturas_7d = conn.execute("""
+        SELECT COUNT(*) as count 
+        FROM assinaturas 
+        WHERE data_compra >= date('now', '-7 days')
+    """)
+    # Se data_compra for DATETIME completo (YYYY-MM-DD HH:MM:SS), 
+    # a comparação com date('now', '-7 days') (que é só YYYY-MM-DD) funciona bem em SQLite
+    # pois ele compara lexicograficamente, mas para ser mais preciso com tempo:
+    # WHERE data_compra >= strftime('%Y-%m-%d %H:%M:%S', datetime('now', '-7 days'))
+    # Por simplicidade e performance, a comparação com date() costuma ser suficiente
+    # se os registros são distribuídos ao longo do dia. Vamos usar a forma mais precisa:
+    cursor_novas_assinaturas_7d = conn.execute("""
+        SELECT COUNT(*) as count 
+        FROM assinaturas 
+        WHERE data_compra >= datetime('now', '-7 days') 
+    """)
+    novas_assinaturas_7dias = cursor_novas_assinaturas_7d.fetchone()['count']
+
+    # Query para a lista de assinaturas
     assinaturas_db = conn.execute('''
         WITH RankedAssinaturas AS (
             SELECT 
                 a.id_assinatura, u.chat_id, u.username, u.first_name, 
                 p.nome_exibicao as nome_plano, a.id_plano_assinado, a.status_pagamento, 
-                a.data_compra, a.data_liberacao, u.status_usuario, -- Adicionamos status_usuario aqui
+                a.data_compra, a.data_liberacao, u.status_usuario,
                 ROW_NUMBER() OVER (PARTITION BY u.chat_id 
                                    ORDER BY 
                                        CASE a.status_pagamento
@@ -109,16 +144,22 @@ def home():
     ''').fetchall()
     conn.close()
 
-    # Processar as datas para o fuso horário local
+    # Processar as datas para o fuso horário local 
     assinaturas_para_template = []
     for row_original in assinaturas_db:
-        row_modificada = dict(row_original) # Converte sqlite3.Row para dict para poder modificar
+        row_modificada = dict(row_original)
         row_modificada['data_compra'] = formatar_data_local(row_modificada['data_compra'])
-        if row_modificada.get('data_liberacao'): # data_liberacao pode ser NULL
+        if row_modificada.get('data_liberacao'):
             row_modificada['data_liberacao'] = formatar_data_local(row_modificada['data_liberacao'])
         assinaturas_para_template.append(row_modificada)
     
-    return render_template('index.html', assinaturas=assinaturas_para_template)
+    return render_template(
+        'index.html', 
+        assinaturas=assinaturas_para_template,
+        total_usuarios_ativos=total_usuarios_ativos,
+        total_assinaturas_ativas=total_assinaturas_ativas,
+        novas_assinaturas_7dias=novas_assinaturas_7dias    
+    )
 
 
 @app.route('/logout')
@@ -131,7 +172,7 @@ def logout():
 @app.route('/aprovar_assinatura/<int:id_assinatura>', methods=['POST'])
 def aprovar_assinatura(id_assinatura):
     if 'usuario_admin' not in session:
-        # ... (redirecionar para login) ...
+        
         return redirect(url_for('login'))
 
     conn = get_db_connection()
@@ -232,9 +273,9 @@ def api_bot_registrar_assinatura():
         return jsonify({"status": "erro", "mensagem": "Chave de API inválida ou dados não enviados"}), 403
 
     chat_id = data.get('chat_id')
-    username = data.get('username') # Pode ser None
+    username = data.get('username') 
     first_name = data.get('first_name')
-    id_plano_selecionado = data.get('id_plano') # Ex: "plano_mensal_basico"
+    id_plano_selecionado = data.get('id_plano') 
     # O status inicial será definido pelo bot dependendo do fluxo (ex: 'pendente_comprovante')
     status_pagamento_inicial = data.get('status_pagamento', 'pendente_comprovante')
 

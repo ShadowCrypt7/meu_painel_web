@@ -26,7 +26,32 @@
             <a class="nav-link {% if request.endpoint == 'admin_planos' %}active{% endif %}" href="{{ url_for('admin_planos') }}">Gerenciar Planos</a>
             <a href="{{ url_for('logout') }}" class="btn btn-danger ms-auto">Sair</a>
         </nav>
-
+        
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-white bg-primary mb-3">
+                    <div class="card-header">Usuários Ativos</div>
+                    <div class="card-body">
+                        <h4 class="card-title">{{ total_usuarios_ativos }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white bg-success mb-3">
+                    <div class="card-header">Assinaturas Ativas</div>
+                    <div class="card-body">
+                        <h4 class="card-title">{{ total_assinaturas_ativas }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-dark bg-info mb-3"> <div class="card-header">Novas Assinaturas (Últimos 7 dias)</div>
+                    <div class="card-body">
+                        <h4 class="card-title">{{ novas_assinaturas_7dias }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <table class="table table-bordered table-striped">
             <thead class="table-dark">
