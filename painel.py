@@ -718,14 +718,14 @@ def admin_excluir_usuario_permanente(chat_id_para_excluir):
 
 @app.route('/api/bot/assinaturas_expirando', methods=['GET'])
 def api_bot_assinaturas_expirando():
-    # Autenticação da API (importante!)
-    chave_recebida = request.args.get('chave_api_bot')
-    if chave_recebida != CHAVE_API_BOT: # CHAVE_API_BOT é o os.getenv("CHAVE_PAINEL")
+    # Autenticação da API (como você já tem, usando request.args.get('chave_api_bot'))
+    chave_enviada_pelo_bot = request.args.get('chave_api_bot')
+    if chave_enviada_pelo_bot != CHAVE_API_BOT: 
         return jsonify({"status": "erro", "mensagem": "Chave de API inválida"}), 403
 
     try:
-        dias_ate_expirar_str = request.args.get('dias_ate_expirar', '7') # Padrão para 7 dias
-        tipo_janela_notificacao = request.args.get('tipo_janela_notificacao') # Ex: "exp_7d", "exp_3d"
+        dias_ate_expirar_str = request.args.get('dias_ate_expirar', '7')
+        tipo_janela_notificacao = request.args.get('tipo_janela_notificacao')
 
         if not tipo_janela_notificacao:
             return jsonify({"status": "erro", "mensagem": "Parâmetro 'tipo_janela_notificacao' é obrigatório."}), 400
@@ -739,12 +739,9 @@ def api_bot_assinaturas_expirando():
 
     conn = get_db_connection()
     try:
-        # datetime('now', '+X days') já retorna no formato YYYY-MM-DD HH:MM:SS que o SQLite compara corretamente com data_fim
-        data_limite_superior = f"datetime('now', '+{dias_ate_expirar} days')"
-        
-        # A data_fim deve ser maior ou igual a hoje E menor ou igual à data limite superior.
-        # E o tipo de notificação específico não deve ter sido enviado ainda.
-        query = f"""
+        # Query SQL ajustada para usar date() para comparações de dia
+        # E passando dias_ate_expirar como parâmetro para a função date()
+        query = """
             SELECT 
                 a.id_assinatura, 
                 a.chat_id_usuario, 
@@ -758,12 +755,15 @@ def api_bot_assinaturas_expirando():
             WHERE a.status_pagamento IN ('aprovado_manual', 'pago_gateway')
               AND u.status_usuario = 'A'
               AND a.data_fim IS NOT NULL
-              AND a.data_fim >= datetime('now') 
-              AND a.data_fim <= {data_limite_superior}
+              AND date(a.data_fim) >= date('now') 
+              AND date(a.data_fim) <= date('now', '+' || ? || ' days') /* Usando parâmetro aqui */
               AND (a.notificacao_expiracao_tipo_enviada IS NULL OR a.notificacao_expiracao_tipo_enviada != ?)
         """
         
-        assinaturas_expirando_db = conn.execute(query, (tipo_janela_notificacao,)).fetchall()
+        # Parâmetros para a query: dias_ate_expirar para o cálculo de data, e tipo_janela_notificacao para o filtro
+        params_sql = (str(dias_ate_expirar), tipo_janela_notificacao) # dias_ate_expirar precisa ser string para concatenar no SQL date()
+        
+        assinaturas_expirando_db = conn.execute(query, params_sql).fetchall()
         
         assinaturas_formatadas = []
         for row in assinaturas_expirando_db:
